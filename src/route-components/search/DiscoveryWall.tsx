@@ -3,7 +3,10 @@ import ProductImagePlaceholder from '#/components/ProductImagePlaceholder'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { PublicProduct } from '#/lib/products'
 import { ResponsiveImage } from '#/lib/responsive-image'
-import { getProductImageTransitionName } from '#/lib/view-transitions'
+import {
+  getProductImageTransitionName,
+  SHARED_IMAGE_TRANSITION_CLASS,
+} from '#/lib/view-transitions'
 import { m } from '#/paraglide/messages'
 
 interface DiscoveryWallProps {
@@ -42,7 +45,10 @@ export function DiscoveryWall({ products }: DiscoveryWallProps) {
         >
           <div
             className='absolute inset-0 overflow-hidden rounded-[inherit]'
-            style={{ viewTransitionName: getProductImageTransitionName(product.id) }}
+            style={{
+              viewTransitionName: getProductImageTransitionName(product.id),
+              viewTransitionClass: SHARED_IMAGE_TRANSITION_CLASS,
+            }}
           >
             {product.imageUrl ? (
               <ResponsiveImage

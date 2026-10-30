@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, MapPin, Store } from 'lucide-react'
 import { getImageUrl } from '#/lib/image-url'
 import type { FeaturedShop } from '#/lib/products'
-import { getShopImageTransitionName } from '#/lib/view-transitions'
+import { getShopImageTransitionName, SHARED_IMAGE_TRANSITION_CLASS } from '#/lib/view-transitions'
 import { m } from '#/paraglide/messages'
 
 interface HomeFeaturedShopsProps {
@@ -82,7 +82,10 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
               <div className='flex items-start gap-3.5'>
                 <div
                   className='relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-surface-elevated text-accent-primary overflow-hidden border border-border-subtle'
-                  style={{ viewTransitionName: getShopImageTransitionName(shop.id) }}
+                  style={{
+                    viewTransitionName: getShopImageTransitionName(shop.id),
+                    viewTransitionClass: SHARED_IMAGE_TRANSITION_CLASS,
+                  }}
                 >
                   <Store size={22} strokeWidth={1.5} aria-hidden='true' />
                   {shop.image && (

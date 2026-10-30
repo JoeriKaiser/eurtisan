@@ -23,7 +23,10 @@ import { reportProduct } from '#/lib/products'
 import { formatPriceEUR } from '#/lib/pricing'
 import { resolveAvailability } from '#/lib/products/availability'
 import type { ProductDetail as ProductDetailType, PublicProduct } from '#/lib/products.server'
-import { getProductImageTransitionName } from '#/lib/view-transitions'
+import {
+  getProductImageTransitionName,
+  SHARED_IMAGE_TRANSITION_CLASS,
+} from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 const ReportProductDialog = lazy(() =>
@@ -117,7 +120,10 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
           {/* Main image */}
           <div
             className='island-shell relative aspect-[4/3] w-full overflow-hidden rounded-2xl'
-            style={{ viewTransitionName: getProductImageTransitionName(product.id) }}
+            style={{
+              viewTransitionName: getProductImageTransitionName(product.id),
+              viewTransitionClass: SHARED_IMAGE_TRANSITION_CLASS,
+            }}
           >
             {selectedImage ? (
               <ResponsiveImage
