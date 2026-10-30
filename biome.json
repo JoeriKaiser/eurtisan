@@ -24,7 +24,13 @@
                 "importNames": ["useEffect"],
                 "message": "Eurtisan forbids useEffect. Use loaders, event-driven updates, callback refs, or useSyncExternalStore."
               }
-            }
+            },
+            "patterns": [
+              {
+                "group": ["@/*"],
+                "message": "Use the '#/*' path alias instead of '@/*'."
+              }
+            ]
           }
         }
       }

@@ -1,4 +1,4 @@
-.PHONY: db-migrate-unit up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
+.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify bundle-check test test-related test-accessibility e2e e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed db-staging-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
 
 # Docker Compose lifecycle
 up:
@@ -11,8 +11,18 @@ up:
 ensure-up:
 	@if [ "$(SKIP_DOCKER_ENSURE_UP)" != "true" ]; then \
 		touch .env.garage; \
-		docker compose up -d --no-recreate; \
-		if [ "$(SKIP_GARAGE_INIT)" != "true" ]; then sh scripts/garage-init.sh; fi; \
+		app_running=$$(docker inspect -f '{{.State.Running}}' eurtisan-app 2>/dev/null || echo false); \
+		garage_ready="true"; \
+		if [ "$(SKIP_GARAGE_INIT)" != "true" ]; then \
+			garage_health=$$(docker inspect -f '{{.State.Health.Status}}' eurtisan-garage 2>/dev/null || echo none); \
+			if [ ! -s .env.garage ] || [ "$$garage_health" != "healthy" ]; then \
+				garage_ready="false"; \
+			fi; \
+		fi; \
+		if [ "$$app_running" != "true" ] || [ "$$garage_ready" != "true" ]; then \
+			docker compose up -d --no-recreate; \
+			if [ "$(SKIP_GARAGE_INIT)" != "true" ]; then sh scripts/garage-init.sh; fi; \
+		fi; \
 	fi
 
 down:
@@ -79,6 +89,10 @@ format-fix: ensure-up
 
 check: ensure-up
 	docker compose exec -T app bun run check
+
+# Combined static verification gate (lint + format + typecheck in a single container exec)
+verify: ensure-up
+	docker compose exec -T app sh -c "bun run lint && bun run format && bun run check"
 
 # Fail on production dependency advisories of moderate severity or higher.
 # - GHSA-vfj7-8cjw-p6xm: transitive braces dependency inside @tanstack/start-plugin-core.
@@ -175,9 +189,15 @@ E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
 UNIT_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_unit
 
 db-migrate-unit: ensure-up
-	@docker compose up -d --wait db-test
-	@docker compose exec -T db-test psql -U eurtisan -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'eurtisan_unit'" | grep -q 1 || docker compose exec -T db-test createdb -U eurtisan eurtisan_unit
-	@docker compose exec -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate
+	@if [ "$$(docker inspect -f '{{.State.Health.Status}}' eurtisan-postgres-test 2>/dev/null)" != "healthy" ]; then \
+		docker compose up -d --wait db-test; \
+	fi
+	@expected=$$(awk -F'[:, ]+' '$$2 == "\"when\"" { c++; if ($$3 > m) m = $$3 } END { print c "|" (m + 0) }' drizzle/meta/_journal.json); \
+	actual=$$(docker compose exec -T db-test psql -U eurtisan -d eurtisan_unit -tAc "SELECT count(*) || '|' || coalesce(max(created_at), 0) FROM public.__drizzle_migrations" 2>/dev/null || echo "0|0"); \
+	if [ "$$expected" != "$$actual" ]; then \
+		docker compose exec -T db-test psql -U eurtisan -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'eurtisan_unit'" | grep -q 1 || docker compose exec -T db-test createdb -U eurtisan eurtisan_unit; \
+		docker compose exec -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate; \
+	fi
 
 # Ensure the isolated E2E database is up before migrating/seeding.
 # Using the e2e compose overlay for these commands guarantees the correct
@@ -203,19 +223,15 @@ db-seed-e2e: db-migrate-e2e
 BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
 
 test: ensure-up db-migrate-unit
-	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
-		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app \
-		  bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts; \
-	else \
-		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
-	fi
+	@docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app \
+	  bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts $(if $(ARGS),$(ARGS),$(filter-out test,$(MAKECMDGOALS)))
 
-test-related: ensure-up
-	docker compose exec app bunx vitest related $(filter-out test-related,$(MAKECMDGOALS)) --run
+test-related: ensure-up db-migrate-unit
+	docker compose exec -T app bunx vitest related $(if $(ARGS),$(ARGS),$(filter-out test-related,$(MAKECMDGOALS))) --run
 
 # Focused rendered accessibility scans and static theme/reflow contracts.
 test-accessibility: ensure-up db-migrate-unit
-	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app bun run test -- \
+	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts \
 	  src/lib/accessibility/contrast.test.ts \
 	  src/components/ui/accessibility.test.tsx \
 	  src/components/ui/primitives/accessibility.test.tsx \
@@ -229,8 +245,8 @@ test-accessibility: ensure-up db-migrate-unit
 	  src/route-components/shops/ShopStorefront.test.tsx \
 	  'src/route-components/category/$$slug.test.tsx'
 
-e2e-install: up
-	docker compose exec app bunx playwright install --with-deps chromium
+e2e-install: ensure-up
+	docker compose exec -T app bunx playwright install --with-deps chromium
 
 E2E_READY_TIMEOUT_SECONDS ?= 120
 
@@ -252,7 +268,7 @@ e2e: up db-seed-e2e
 		docker compose up -d app --force-recreate; \
 		exit 1; \
 	fi
-	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -e E2E_DATABASE_URL=$(E2E_DATABASE_URL) app bunx playwright test; \
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T -e E2E_DATABASE_URL=$(E2E_DATABASE_URL) app bunx playwright test $(if $(ARGS),$(ARGS),$(filter-out e2e,$(MAKECMDGOALS))); \
 		e2e_exit=$$?; \
 		docker compose up -d app --force-recreate; \
 		exit $$e2e_exit
@@ -273,34 +289,34 @@ e2e-report: up
 	docker compose run --rm -p 9323:9323 app bun run e2e/serve-report.ts
 
 # Playwright Agent CLI (for browser automation by AI coding agents)
-playwright-cli: up
-	docker compose exec app bunx playwright-cli $(if $(CMD),$(CMD),$(filter-out playwright-cli,$(MAKECMDGOALS)))
+playwright-cli: ensure-up
+	docker compose exec -T app bunx playwright-cli $(if $(CMD),$(CMD),$(if $(ARGS),$(ARGS),$(filter-out playwright-cli,$(MAKECMDGOALS))))
 
 # Retrieve the last sent email from Mailpit as JSON
-email-last: up
-	docker compose exec app bun run scripts/mailpit-helper.ts last
+email-last: ensure-up
+	docker compose exec -T app bun run scripts/mailpit-helper.ts last
 
 # Retrieve extracted links from the last sent email
-email-links: up
-	docker compose exec app bun run scripts/mailpit-helper.ts links
+email-links: ensure-up
+	docker compose exec -T app bun run scripts/mailpit-helper.ts links
 
 # Check local Meilisearch indexing stats
-meili-status: up
-	docker compose exec app bun -e "fetch('http://meilisearch:7700/stats', { headers: { Authorization: 'Bearer meilisearch-api-key' } }).then(r => r.json()).then(console.log)"
+meili-status: ensure-up
+	docker compose exec -T app bun -e "fetch('http://meilisearch:7700/stats', { headers: { Authorization: 'Bearer meilisearch-api-key' } }).then(r => r.json()).then(console.log)"
 
 
 # Auth
-auth-secret: up
-	docker compose exec app bunx @better-auth/cli secret
+auth-secret: ensure-up
+	docker compose exec -T app bunx @better-auth/cli secret
 
 # Init
 init:
 	docker compose up -d --build
 	docker compose run --rm app bun install
 	docker compose up -d
-	docker compose exec app bun run i18n:compile
-	docker compose exec app bun run db:migrate
-	docker compose exec app bun run db:seed -- --clear --force
+	docker compose exec -T app bun run i18n:compile
+	docker compose exec -T app bun run db:migrate
+	docker compose exec -T app bun run db:seed -- --clear --force
 
 # Database
 db-generate: up
@@ -316,21 +332,21 @@ db-migrate-fresh: ensure-up
 	sh scripts/validate-fresh-migrations.sh
 
 db-push: up
-	docker compose exec app bun run db:push
+	docker compose exec -T app bun run db:push
 
 db-seed: up
-	docker compose exec app bun run src/db/seed.ts --clear --force
+	docker compose exec -T app bun run src/db/seed.ts --clear --force
 
 # Staging / Production seed: idempotent, additive only. Safe to re-run.
 db-staging-seed: up
-	docker compose exec app bun run src/db/seed-staging.ts
+	docker compose exec -T app bun run src/db/seed-staging.ts
 
 db-studio:
 	docker compose run --rm -p 4983:4983 app bun run db:studio
 
 # Meilisearch
 meili-setup: up
-	docker compose exec app bun run src/lib/meili-setup.ts
+	docker compose exec -T app bun run src/lib/meili-setup.ts
 
 # ── Release and infrastructure validation ───────────────────────────────
 ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667

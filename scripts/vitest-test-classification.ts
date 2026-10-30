@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 
@@ -15,7 +15,7 @@ function toPosixPath(path: string): string {
   return path.split(sep).join('/')
 }
 
-function collectTestFiles(directory: string, suffix: '.test.ts' | '.test.tsx'): string[] {
+export function collectTestFiles(directory: string, suffix: '.test.ts' | '.test.tsx'): string[] {
   if (!existsSync(directory)) return []
 
   const files: string[] = []
@@ -51,20 +51,105 @@ function referencesServerFactory(expression: ts.Expression): boolean {
   return false
 }
 
-function runtimeModuleSpecifiers(path: string, browserRuntime: boolean): string[] {
+interface ParsedModuleMetadata {
+  mtimeMs: number
+  size: number
+  runtimeSpecifiers: string[]
+  browserSpecifiers: string[]
+  isServerContract: boolean
+}
+
+const AST_CACHE_RELATIVE_PATH = 'node_modules/.cache/eurtisan-vitest-ast-cache.json'
+const memoryAstCache = new Map<string, ParsedModuleMetadata>()
+let diskAstCacheLoaded = false
+let diskAstCacheDirty = false
+
+function loadDiskAstCache(projectRoot: string): void {
+  if (diskAstCacheLoaded) return
+  diskAstCacheLoaded = true
+  const cachePath = join(projectRoot, AST_CACHE_RELATIVE_PATH)
+  if (!existsSync(cachePath)) return
+  try {
+    const parsed = JSON.parse(readFileSync(cachePath, 'utf8')) as Record<
+      string,
+      ParsedModuleMetadata
+    >
+    if (parsed && typeof parsed === 'object') {
+      for (const [key, value] of Object.entries(parsed)) {
+        if (
+          value &&
+          typeof value.mtimeMs === 'number' &&
+          typeof value.size === 'number' &&
+          Array.isArray(value.runtimeSpecifiers) &&
+          Array.isArray(value.browserSpecifiers) &&
+          typeof value.isServerContract === 'boolean'
+        ) {
+          memoryAstCache.set(key, value)
+        }
+      }
+    }
+  } catch {
+    // Ignore corrupt or outdated cache files
+  }
+}
+
+function flushDiskAstCache(projectRoot: string): void {
+  if (!diskAstCacheDirty) return
+  diskAstCacheDirty = false
+  const cachePath = join(projectRoot, AST_CACHE_RELATIVE_PATH)
+  try {
+    mkdirSync(dirname(cachePath), { recursive: true })
+    const serialized: Record<string, ParsedModuleMetadata> = {}
+    for (const [key, value] of memoryAstCache.entries()) {
+      serialized[key] = value
+    }
+    writeFileSync(cachePath, JSON.stringify(serialized), 'utf8')
+  } catch {
+    // Best-effort cache persistence
+  }
+}
+
+function parseModuleMetadata(path: string, useCache: boolean): ParsedModuleMetadata {
+  let mtimeMs = 0
+  let size = 0
+  if (useCache) {
+    const stat = statSync(path)
+    mtimeMs = stat.mtimeMs
+    size = stat.size
+    const cached = memoryAstCache.get(path)
+    if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
+      return cached
+    }
+  }
+
   const source = readFileSync(path, 'utf8')
   const sourceFile = ts.createSourceFile(
     path,
     source,
     ts.ScriptTarget.Latest,
-    true,
+    false,
     path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
-  const specifiers: string[] = []
 
-  function visit(node: ts.Node): void {
+  const isServerContract = sourceFile.statements.some(
+    (statement) =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text === '@tanstack/react-start' &&
+      statement.importClause?.namedBindings &&
+      ts.isNamedImports(statement.importClause.namedBindings) &&
+      statement.importClause.namedBindings.elements.some(
+        (element) =>
+          element.name.text === 'createMiddleware' || element.name.text === 'createServerFn',
+      ),
+  )
+
+  const runtimeSpecifiers: string[] = []
+  const browserSpecifiers: string[] = []
+
+  function visit(node: ts.Node, inServerImplementation: boolean): void {
     if (
-      browserRuntime &&
+      !inServerImplementation &&
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
       (node.expression.name.text === 'handler' || node.expression.name.text === 'server') &&
@@ -72,23 +157,27 @@ function runtimeModuleSpecifiers(path: string, browserRuntime: boolean): string[
     ) {
       // TanStack removes server function and request-middleware implementations
       // from browser bundles. Their imports cannot execute in browser tests.
-      visit(node.expression)
+      visit(node.expression, false)
+      for (const arg of node.arguments) {
+        visit(arg, true)
+      }
       return
     }
 
+    let specifier: string | null = null
     if (
       ts.isImportDeclaration(node) &&
       ts.isStringLiteral(node.moduleSpecifier) &&
       importClauseHasRuntimeValue(node.importClause)
     ) {
-      specifiers.push(node.moduleSpecifier.text)
+      specifier = node.moduleSpecifier.text
     } else if (
       ts.isExportDeclaration(node) &&
       !node.isTypeOnly &&
       node.moduleSpecifier &&
       ts.isStringLiteral(node.moduleSpecifier)
     ) {
-      specifiers.push(node.moduleSpecifier.text)
+      specifier = node.moduleSpecifier.text
     } else if (
       ts.isCallExpression(node) &&
       node.arguments.length === 1 &&
@@ -96,14 +185,34 @@ function runtimeModuleSpecifiers(path: string, browserRuntime: boolean): string[
       (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
         (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
     ) {
-      specifiers.push(node.arguments[0].text)
+      specifier = node.arguments[0].text
     }
 
-    ts.forEachChild(node, visit)
+    if (specifier !== null) {
+      runtimeSpecifiers.push(specifier)
+      if (!inServerImplementation) {
+        browserSpecifiers.push(specifier)
+      }
+    }
+
+    ts.forEachChild(node, (child) => visit(child, inServerImplementation))
   }
 
-  visit(sourceFile)
-  return specifiers
+  visit(sourceFile, false)
+
+  const metadata: ParsedModuleMetadata = {
+    mtimeMs,
+    size,
+    runtimeSpecifiers,
+    browserSpecifiers,
+    isServerContract,
+  }
+
+  if (useCache) {
+    memoryAstCache.set(path, metadata)
+    diskAstCacheDirty = true
+  }
+  return metadata
 }
 
 function resolveLocalModule(
@@ -138,96 +247,82 @@ function isDatabaseBoundary(projectRoot: string, path: string): boolean {
 }
 
 function createDependencyClassifier(projectRoot: string, browserRuntime = false) {
+  const useCache = projectRoot === resolve(process.cwd())
+  if (useCache) loadDiskAstCache(projectRoot)
+
   const importCache = new Map<string, string[]>()
-  const serverContractCache = new Map<string, boolean>()
-  const databasePathCache = new Map<string, string[]>()
-
-  function isTanStackServerContract(path: string): boolean {
-    const cached = serverContractCache.get(path)
-    if (cached !== undefined) return cached
-
-    const source = readFileSync(path, 'utf8')
-    const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, false)
-    const result = sourceFile.statements.some(
-      (statement) =>
-        ts.isImportDeclaration(statement) &&
-        ts.isStringLiteral(statement.moduleSpecifier) &&
-        statement.moduleSpecifier.text === '@tanstack/react-start' &&
-        statement.importClause?.namedBindings &&
-        ts.isNamedImports(statement.importClause.namedBindings) &&
-        statement.importClause.namedBindings.elements.some(
-          (element) =>
-            element.name.text === 'createMiddleware' || element.name.text === 'createServerFn',
-        ),
-    )
-    serverContractCache.set(path, result)
-    return result
-  }
-
+  const databasePathCache = new Map<string, string[] | null>()
   function localDependencies(path: string): string[] {
     const cached = importCache.get(path)
     if (cached) return cached
 
-    const dependencies = runtimeModuleSpecifiers(path, browserRuntime)
+    const metadata = parseModuleMetadata(path, useCache)
+    const specifiers = browserRuntime ? metadata.browserSpecifiers : metadata.runtimeSpecifiers
+    const dependencies = specifiers
       .map((specifier) => resolveLocalModule(projectRoot, path, specifier))
       .filter((dependency): dependency is string => dependency !== null)
     importCache.set(path, dependencies)
     return dependencies
   }
 
-  function databaseDependencyPath(
+  function findDatabasePath(
     path: string,
-    visiting = new Set<string>(),
-    entryPoint = false,
-  ): string[] | null {
-    if (isDatabaseBoundary(projectRoot, path)) return [path]
-    if (browserRuntime && !entryPoint && isTanStackServerContract(path)) {
+    visiting: Set<string>,
+    entryPoint: boolean,
+  ): { path: string[] | null; hitCycle: boolean } {
+    if (isDatabaseBoundary(projectRoot, path)) return { path: [path], hitCycle: false }
+    if (browserRuntime && !entryPoint && parseModuleMetadata(path, useCache).isServerContract) {
       // TanStack compiles these modules into client stubs and removes their
       // implementation-only imports. The production build separately enforces
       // that server-only code cannot leak into the browser bundle.
-      return null
+      return { path: null, hitCycle: false }
     }
 
-    const cached = databasePathCache.get(path)
-    if (cached) return cached
-    if (visiting.has(path)) return null
+    if (!entryPoint && databasePathCache.has(path)) {
+      return { path: databasePathCache.get(path) ?? null, hitCycle: false }
+    }
+    if (visiting.has(path)) return { path: null, hitCycle: true }
 
     visiting.add(path)
     let result: string[] | null = null
+    let hitCycle = false
     for (const dependency of localDependencies(path)) {
-      const dependencyPath = databaseDependencyPath(dependency, visiting)
-      if (dependencyPath) {
-        result = [path, ...dependencyPath]
+      const dep = findDatabasePath(dependency, visiting, false)
+      if (dep.hitCycle) hitCycle = true
+      if (dep.path) {
+        result = [path, ...dep.path]
         break
       }
     }
     visiting.delete(path)
 
-    // Cache successful paths only. Caching a negative result discovered while
-    // traversing a cycle can incorrectly hide a path through an ancestor.
-    if (result) databasePathCache.set(path, result)
-    return result
+    // Cache positive paths unconditionally, and cache negative results only when
+    // the traversal did not depend on skipping an active cycle ancestor.
+    if (!entryPoint && (result !== null || !hitCycle)) {
+      databasePathCache.set(path, result)
+    }
+    return { path: result, hitCycle }
   }
 
-  function reachesDatabase(path: string): boolean {
-    return databaseDependencyPath(path) !== null
-  }
-
-  return { databaseDependencyPath, reachesDatabase }
+  return { findDatabasePath, useCache }
 }
 
 export function classifyUnitTestFiles(projectRoot = process.cwd()): UnitTestClassification {
   const root = resolve(projectRoot)
   const tests = collectTestFiles(join(root, 'src'), '.test.ts')
-  const { reachesDatabase } = createDependencyClassifier(root)
+  const { findDatabasePath, useCache } = createDependencyClassifier(root)
   const classification: UnitTestClassification = { database: [], pure: [] }
 
   for (const test of tests) {
     const relativePath = toPosixPath(relative(root, test))
-    if (reachesDatabase(test)) classification.database.push(relativePath)
-    else classification.pure.push(relativePath)
+    if (findDatabasePath(test, new Set<string>(), false).path !== null) {
+      classification.database.push(relativePath)
+    } else {
+      classification.pure.push(relativePath)
+    }
   }
 
+  if (useCache) flushDiskAstCache(root)
   return classification
 }
 
@@ -252,7 +347,13 @@ export function loadUnitTestClassification(
   projectRoot = process.cwd(),
   serialized = process.env[UNIT_TEST_CLASSIFICATION_ENV],
 ): UnitTestClassification {
-  if (serialized === undefined) return classifyUnitTestFiles(projectRoot)
+  if (serialized === undefined) {
+    const computed = classifyUnitTestFiles(projectRoot)
+    if (resolve(projectRoot) === resolve(process.cwd())) {
+      process.env[UNIT_TEST_CLASSIFICATION_ENV] = JSON.stringify(computed)
+    }
+    return computed
+  }
 
   let parsed: unknown
   try {
@@ -281,16 +382,97 @@ export function assertBrowserTestsDatabaseFree(
   if (isExplicitlyVerified || (isDefaultRoot && isEnvVerified)) return
 
   const tests = collectTestFiles(join(root, 'src'), '.test.tsx')
-  const { databaseDependencyPath } = createDependencyClassifier(root, true)
+  const { findDatabasePath, useCache } = createDependencyClassifier(root, true)
   const violations = tests.flatMap((test) => {
-    const dependencyPath = databaseDependencyPath(test, new Set<string>(), true)
+    const dependencyPath = findDatabasePath(test, new Set<string>(), true).path
     if (!dependencyPath) return []
     return [dependencyPath.map((path) => toPosixPath(relative(root, path))).join(' -> ')]
   })
-
+  if (useCache) flushDiskAstCache(root)
   if (violations.length > 0) {
     throw new Error(
       `Browser tests must not transitively import database modules because they run concurrently with database-backed unit tests:\n${violations.join('\n')}`,
     )
   }
+
+  if (isDefaultRoot && verified === undefined) {
+    process.env[BROWSER_TEST_DATABASE_FREE_ENV] = 'true'
+  }
+}
+
+const VALUE_TAKING_VITEST_FLAGS: Record<string, true> = {
+  '-t': true,
+  '--testNamePattern': true,
+  '--reporter': true,
+  '--outputFile': true,
+  '-c': true,
+  '--config': true,
+  '-r': true,
+  '--root': true,
+  '--dir': true,
+  '--pool': true,
+  '--maxWorkers': true,
+  '--minWorkers': true,
+  '--environment': true,
+  '--shard': true,
+  '--bail': true,
+  '--retry': true,
+  '--testTimeout': true,
+  '--hookTimeout': true,
+  '--teardownTimeout': true,
+  '--sequence': true,
+  '--project': true,
+}
+
+export interface ExtractedCliArgs {
+  filters: string[]
+  flagArgs: string[]
+  hasExplicitProject: boolean
+}
+
+export function extractCliArgs(args: string[]): ExtractedCliArgs {
+  const filters: string[] = []
+  const flagArgs: string[] = []
+  let hasExplicitProject = false
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (arg === '--') {
+      for (let j = i + 1; j < args.length; j++) {
+        if (args[j].startsWith('-')) flagArgs.push(args[j])
+        else filters.push(args[j])
+      }
+      break
+    }
+    if (arg === '--project' || arg.startsWith('--project=')) {
+      hasExplicitProject = true
+    }
+    if (VALUE_TAKING_VITEST_FLAGS[arg]) {
+      flagArgs.push(arg)
+      if (i + 1 < args.length) {
+        flagArgs.push(args[i + 1])
+        i++
+      }
+      continue
+    }
+    if (arg.startsWith('-')) {
+      flagArgs.push(arg)
+      continue
+    }
+    filters.push(arg)
+  }
+  return { filters, flagArgs, hasExplicitProject }
+}
+
+export function matchFilterAgainstFiles(rawFilter: string, files: string[]): string[] {
+  const normalized = rawFilter.replace(/\\/g, '/').replace(/^\.\//, '')
+  const directMatches = files.filter((file) => file.includes(normalized))
+  if (directMatches.length > 0) return directMatches
+
+  // Recover dynamic route test paths when Make ($c) or shell ($param) expanded unescaped $ segments
+  return files.filter(
+    (file) =>
+      file.includes('$') &&
+      (file.replace(/\$[A-Za-z0-9_]+/g, '').includes(normalized) ||
+        file.replace(/\$[A-Za-z0-9_]/g, '').includes(normalized)),
+  )
 }
