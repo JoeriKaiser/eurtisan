@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   assertBrowserTestsDatabaseFree,
   classifyUnitTestFiles,
+  extractCliArgs,
   loadUnitTestClassification,
+  matchFilterAgainstFiles,
 } from '../../scripts/vitest-test-classification'
 
 const temporaryProjects: string[] = []
@@ -139,5 +141,34 @@ describe('assertBrowserTestsDatabaseFree', () => {
     })
 
     expect(() => assertBrowserTestsDatabaseFree(root, 'true')).not.toThrow()
+  })
+})
+
+describe('extractCliArgs and matchFilterAgainstFiles', () => {
+  it('separates positional filters from value-taking Vitest flags', () => {
+    expect(
+      extractCliArgs(['src/lib/tax/pricing.test.ts', '-t', 'calculates VAT', '--bail', '1']),
+    ).toEqual({
+      filters: ['src/lib/tax/pricing.test.ts'],
+      flagArgs: ['-t', 'calculates VAT', '--bail', '1'],
+      hasExplicitProject: false,
+    })
+  })
+
+  it('recovers dynamic route test paths when Make or shell expands $ segments', () => {
+    const files = [
+      'src/route-components/category/$slug.test.tsx',
+      'src/route-components/studio/$shopId.orders.$shopOrderId.test.tsx',
+    ]
+
+    expect(matchFilterAgainstFiles('src/route-components/category/lug.test.tsx', files)).toEqual([
+      'src/route-components/category/$slug.test.tsx',
+    ])
+    expect(matchFilterAgainstFiles('src/route-components/category/.test.tsx', files)).toEqual([
+      'src/route-components/category/$slug.test.tsx',
+    ])
+    expect(matchFilterAgainstFiles('src/route-components/studio/.orders..test.tsx', files)).toEqual(
+      ['src/route-components/studio/$shopId.orders.$shopOrderId.test.tsx'],
+    )
   })
 })

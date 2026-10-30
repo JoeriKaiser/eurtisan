@@ -132,10 +132,8 @@ Docker Compose is the source of truth. Run project workflows through `make` from
 
 For code changes, completion requires:
 
-- `make lint` with no errors or warnings;
-- `make format` with no formatting failures;
-- `make check` with no TypeScript errors;
-- focused tests via `make test <paths>` or impacted tests via `make test-related <paths>`;
+- `make lint` with no errors or warnings, `make format` with no formatting failures, and `make check` with no TypeScript errors, or `make verify` to run all three in one container invocation;
+- focused tests via `make test <paths>`, `make test ARGS="<paths> -t '<pattern>'"`, or impacted tests via `make test-related <paths>`;
 - the full `make test` suite for broad or architectural changes.
 
 Run additional relevant gates (accessibility, bundle, production image, Compose, infrastructure, migrations, E2E) when the affected subsystem requires them. For documentation-only changes, verify links and consistency; do not run unrelated code gates solely for ceremony.
@@ -270,7 +268,7 @@ Staging seed data is idempotent, additive, deterministic, and curated. Local dev
 - The observability stack in `infrastructure/observability/` deploys separately and persists across application deployments.
 - Privileged tests may need 2FA-enabled users because server functions enforce 2FA independently of route guards.
 - Deleted users are deactivated; tests reusing deleted records should expect unauthenticated/banned behavior.
-- `make e2e` does not forward arbitrary Playwright flags. Follow `docs/DEVELOPER_TOOLING.md` and use both Compose files when invoking individual E2E specs directly.
+- Pass Playwright flags to `make e2e` or Vitest flags to `make test` via `ARGS="..."`, because bare Make arguments starting with `-` are interpreted by `make` itself.
 
 ## Documentation maintenance
 

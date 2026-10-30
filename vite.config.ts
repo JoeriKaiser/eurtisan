@@ -156,12 +156,34 @@ const config = defineConfig(({ mode }) => {
       }),
       viteReact(),
       tailwindcss(),
+      paraglideVitePlugin({
+        project: './.inlang-runtime/project.inlang',
+        outdir: './src/paraglide',
+        outputStructure: 'locale-modules',
+        cookieName: 'PARAGLIDE_LOCALE',
+        strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
+        urlPatterns: [
+          {
+            pattern: '/:path(.*)?',
+            localized: [
+              ...PREFIXED_EU_LOCALES.map(
+                (locale) => [locale, `/${locale}/:path(.*)?`] as [string, string],
+              ),
+              ['en', '/:path(.*)?'],
+            ],
+          },
+        ],
+      }),
       {
         name: 'eurtisan-client-i18n-runtime',
-        buildStart() {
-          const ordered = compileClientI18nCatalogs()
-          keyToIndex = ordered.keyToIndex
-          ssrVirtualModuleCache = null
+        buildStart: {
+          order: 'post',
+          sequential: true,
+          handler() {
+            const ordered = compileClientI18nCatalogs()
+            keyToIndex = ordered.keyToIndex
+            ssrVirtualModuleCache = null
+          },
         },
         load(id, options) {
           if (process.env.VITEST) {
@@ -200,24 +222,6 @@ const config = defineConfig(({ mode }) => {
           return mutated ? { code: transformed, map: null } : null
         },
       },
-      paraglideVitePlugin({
-        project: './.inlang-runtime/project.inlang',
-        outdir: './src/paraglide',
-        outputStructure: 'locale-modules',
-        cookieName: 'PARAGLIDE_LOCALE',
-        strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
-        urlPatterns: [
-          {
-            pattern: '/:path(.*)?',
-            localized: [
-              ...PREFIXED_EU_LOCALES.map(
-                (locale) => [locale, `/${locale}/:path(.*)?`] as [string, string],
-              ),
-              ['en', '/:path(.*)?'],
-            ],
-          },
-        ],
-      }),
       // devtools() disabled: its data-tsd-source instrumentation causes hydration
       // mismatches in dev (server/client line numbers diverge). Re-enable when the
       // plugin supports stable hashes or suppressHydrationWarning propagation.

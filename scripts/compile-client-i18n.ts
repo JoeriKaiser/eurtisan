@@ -92,18 +92,21 @@ export function ensureParaglideRuntimeProject(rootDir = process.cwd()): string {
     },
   }
 
-  writeFileSync(
-    join(runtimeProjectDir, 'settings.json'),
-    `${JSON.stringify(runtimeSettings, null, 2)}\n`,
-    'utf8',
-  )
+  const settingsFilePath = join(runtimeProjectDir, 'settings.json')
+  const settingsContent = `${JSON.stringify(runtimeSettings, null, 2)}\n`
+  if (!existsSync(settingsFilePath) || readFileSync(settingsFilePath, 'utf8') !== settingsContent) {
+    writeFileSync(settingsFilePath, settingsContent, 'utf8')
+  }
 
   const runtimeEnMessagesPath = join(runtimeMessagesDir, 'en.json')
-  writeFileSync(
-    runtimeEnMessagesPath,
-    '{"$schema":"https://inlang.com/schema/inlang-message-format","_":""}\n',
-    'utf8',
-  )
+  const runtimeEnMessagesContent =
+    '{"$schema":"https://inlang.com/schema/inlang-message-format","_":""}\n'
+  if (
+    !existsSync(runtimeEnMessagesPath) ||
+    readFileSync(runtimeEnMessagesPath, 'utf8') !== runtimeEnMessagesContent
+  ) {
+    writeFileSync(runtimeEnMessagesPath, runtimeEnMessagesContent, 'utf8')
+  }
 
   return runtimeProjectDir
 }
