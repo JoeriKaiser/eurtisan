@@ -41,8 +41,11 @@ export function MoreFromShop({ products, shopSlug, shopName }: MoreFromShopProps
 
       {/* No pagination: this is a rail, and the storefront link above is the
           path to the rest. `totalPages={1}` keeps ProductGrid from rendering
-          controls that would page nothing. */}
-      <ProductGrid products={products} page={1} totalPages={1} />
+          controls that would page nothing.
+          No shared image transition: these products usually also appear on the
+          page the buyer came from, and morphing them would send several images
+          across the screen alongside the one that was clicked. */}
+      <ProductGrid products={products} page={1} totalPages={1} sharedImageTransition={false} />
     </section>
   )
 }

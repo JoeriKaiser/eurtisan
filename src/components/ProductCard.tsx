@@ -3,7 +3,10 @@ import { PackageX, Store } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import type { PublicProduct } from '#/lib/products'
-import { getProductImageTransitionName } from '#/lib/view-transitions'
+import {
+  getProductImageTransitionName,
+  SHARED_IMAGE_TRANSITION_CLASS,
+} from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 import ProductImagePlaceholder from './ProductImagePlaceholder'
@@ -11,9 +14,15 @@ import ProductImagePlaceholder from './ProductImagePlaceholder'
 export interface ProductCardProps {
   product: PublicProduct
   imageUrl?: string | null
+  /** Morph this card's image into the product page image on navigation. */
+  sharedImageTransition?: boolean
 }
 
-export default function ProductCard({ product, imageUrl }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  imageUrl,
+  sharedImageTransition = true,
+}: ProductCardProps) {
   const isOutOfStock = product.stockCount <= 0
 
   return (
@@ -26,7 +35,14 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
       {/* Image */}
       <div
         className='relative aspect-[4/3] w-full overflow-hidden bg-surface-inset'
-        style={{ viewTransitionName: getProductImageTransitionName(product.id) }}
+        style={
+          sharedImageTransition
+            ? {
+                viewTransitionName: getProductImageTransitionName(product.id),
+                viewTransitionClass: SHARED_IMAGE_TRANSITION_CLASS,
+              }
+            : undefined
+        }
       >
         {imageUrl ? (
           <ResponsiveImage

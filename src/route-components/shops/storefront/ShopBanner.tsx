@@ -1,7 +1,7 @@
 import { Store } from 'lucide-react'
 import { useState } from 'react'
 import { getImageUrl } from '#/lib/image-url'
-import { getShopImageTransitionName } from '#/lib/view-transitions'
+import { getShopImageTransitionName, SHARED_IMAGE_TRANSITION_CLASS } from '#/lib/view-transitions'
 
 export interface ShopBannerProps {
   shopId: string
@@ -46,7 +46,10 @@ export function ShopBanner({ shopId, bannerImage, avatarImage }: ShopBannerProps
   const avatar = (
     <div
       className='flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-surface-default bg-accent-primary-subtle text-accent-primary shadow-sm sm:size-24'
-      style={{ viewTransitionName: getShopImageTransitionName(shopId) }}
+      style={{
+        viewTransitionName: getShopImageTransitionName(shopId),
+        viewTransitionClass: SHARED_IMAGE_TRANSITION_CLASS,
+      }}
     >
       {showAvatar && avatarImage ? (
         <img

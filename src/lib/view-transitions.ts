@@ -41,6 +41,14 @@ export function resolveNavigationTransitionTypes({
   return [PAGE_TRANSITION_TYPE]
 }
 
+/**
+ * `view-transition-class` shared by every product and shop image that carries a
+ * per-entity `view-transition-name`. `styles.css` uses it to crop the morph when
+ * the two boundaries have different aspect ratios, and to give images that exist
+ * on only one side of a navigation the page-content timing.
+ */
+export const SHARED_IMAGE_TRANSITION_CLASS = 'shared-image'
+
 export function getProductImageTransitionName(productId: string): string {
   return `product-image-${productId}`
 }

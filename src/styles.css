@@ -777,6 +777,35 @@ html:active-view-transition-type(onboarding-backward)::view-transition-new(page-
   }
 }
 
+/* Shared product and shop images (`SHARED_IMAGE_TRANSITION_CLASS`). A source
+   and destination with different aspect ratios (discovery wall tiles versus the
+   4:3 product image) would otherwise overflow the group mid-morph, because the
+   browser sizes the snapshots by width only. */
+::view-transition-group(.shared-image) {
+  overflow: clip;
+  animation-duration: 250ms;
+  animation-timing-function: var(--ds-ease-out);
+}
+
+::view-transition-old(.shared-image),
+::view-transition-new(.shared-image) {
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A named image present on only one side of the navigation has nothing to morph
+   into. Without these rules it fades on the browser default timing above the
+   page content; with them it leaves and arrives together with the page. */
+html:active-view-transition-type(page)::view-transition-old(.shared-image):only-child {
+  transform-origin: top center;
+  animation: page-transition-out 170ms var(--ds-ease-out) both;
+}
+
+html:active-view-transition-type(page)::view-transition-new(.shared-image):only-child {
+  transform-origin: top center;
+  animation: page-transition-in 250ms var(--ds-ease-out) both;
+}
+
 /* ─── Animation ─── */
 .rise-in {
   animation: rise-in 600ms var(--ds-ease-out) both;
