@@ -2,6 +2,7 @@ import z from 'zod'
 
 export const openDisputeSchema = z.object({
   shopOrderId: z.string().uuid(),
+  returnRequestId: z.string().uuid().optional(),
   reason: z.string().min(1).max(500),
   description: z.string().min(1).max(5000),
 })

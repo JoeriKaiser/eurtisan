@@ -65,3 +65,23 @@ export function calculateReturnRefund(input: {
     totalCents: itemRefundCents + outboundShippingRefundCents,
   }
 }
+
+export function calculateConditionDeduction(
+  refundCents: number,
+  outboundShippingRefundCents: number,
+  requestedDeductionCents: number,
+): number {
+  if (requestedDeductionCents <= 0) {
+    return 0
+  }
+  const maxDeduction = Math.max(0, refundCents - outboundShippingRefundCents)
+  if (requestedDeductionCents > maxDeduction) {
+    return maxDeduction
+  }
+  return Math.round(requestedDeductionCents)
+}
+
+export function isReturnExpired(returnDeadline: Date, now?: Date, graceHours = 72): boolean {
+  const effectiveDeadline = new Date(returnDeadline.getTime() + graceHours * 3600000)
+  return (now ?? new Date()) > effectiveDeadline
+}

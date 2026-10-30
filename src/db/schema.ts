@@ -1082,12 +1082,16 @@ export const dispute = pgTable(
     refundCents: integer('refund_cents'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    returnRequestId: uuid('return_request_id').references(() => returnRequest.id, {
+      onDelete: 'set null',
+    }),
   },
   (table) => [
     index('dispute_status_idx').on(table.status),
     index('dispute_buyer_user_id_idx').on(table.buyerUserId),
     index('dispute_created_at_idx').on(table.createdAt),
-    uniqueIndex('dispute_shop_order_id_unique').on(table.shopOrderId),
+    index('dispute_return_request_id_idx').on(table.returnRequestId),
+    uniqueIndex('dispute_active_shop_order_idx').on(table.shopOrderId).where(sql`status = 'open'`),
     check('dispute_status_check', sql`${table.status} IN ('open', 'resolved', 'closed')`),
   ],
 )
@@ -1101,6 +1105,7 @@ export const returnRequestStatusEnum = pgEnum('return_request_status', [
   'refund_pending',
   'refunded',
   'rejected',
+  'disputed',
   'closed',
 ])
 
@@ -1125,6 +1130,14 @@ export const returnRequest = pgTable(
     returnDeadline: timestamp('return_deadline').notNull(),
     refundCents: integer('refund_cents').notNull().default(0),
     outboundShippingRefundCents: integer('outbound_shipping_refund_cents').notNull().default(0),
+    diminishedValueCents: integer('diminished_value_cents').notNull().default(0),
+    netRefundCents: integer('net_refund_cents').notNull().default(0),
+    diminishedValueReason: text('diminished_value_reason'),
+    diminishedValueCategory: text('diminished_value_category'),
+    diminishedValueEvidenceUrls: jsonb('diminished_value_evidence_urls')
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     carrier: text(),
     trackingNumber: text('tracking_number'),
     labelUrl: text('label_url'),
@@ -1148,6 +1161,12 @@ export const returnRequest = pgTable(
       'return_request_outbound_refund_non_negative',
       sql`${table.outboundShippingRefundCents} >= 0`,
     ),
+    check('return_request_diminished_value_non_negative', sql`${table.diminishedValueCents} >= 0`),
+    check('return_request_net_refund_non_negative', sql`${table.netRefundCents} >= 0`),
+    check(
+      'return_request_diminished_value_bounds',
+      sql`${table.diminishedValueCents} <= ${table.refundCents} - ${table.outboundShippingRefundCents}`,
+    ),
   ],
 )
 
@@ -1163,6 +1182,7 @@ export const returnRequestItem = pgTable(
       .references(() => orderItem.id, { onDelete: 'restrict' }),
     quantity: integer().notNull(),
     refundCents: integer('refund_cents').notNull(),
+    restockItem: boolean('restock_item').notNull().default(true),
   },
   (table) => [
     uniqueIndex('return_request_item_unique').on(table.returnRequestId, table.orderItemId),

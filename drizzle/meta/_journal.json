@@ -645,6 +645,13 @@
       "when": 1789498400000,
       "tag": "0091_dsa_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1793398633864,
+      "tag": "0092_handy_paibok",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 
-import { and, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, eq, inArray, lt, ne, sql } from 'drizzle-orm'
 import type z from 'zod'
 import { db } from '#/db/index'
 import {
@@ -18,6 +18,7 @@ import {
   user,
 } from '#/db/schema'
 import { getShippingProvider } from '#/integrations/shipping'
+import { molliePaymentProvider } from '#/integrations/mollie'
 import type { ShippingAddress as ProviderAddress } from '#/lib/shipping/types'
 import { scheduleBackgroundWork } from '../background-work.server'
 import { enqueueEmail } from '../email/outbox.server'
@@ -179,6 +180,8 @@ export async function createReturnRequestQuery(
         returnDeadline: getReturnDeadline(now),
         refundCents: refund.totalCents,
         outboundShippingRefundCents: refund.outboundShippingRefundCents,
+        diminishedValueCents: 0,
+        netRefundCents: refund.totalCents,
       })
       .returning({ id: returnRequest.id })
 
@@ -236,6 +239,21 @@ export async function getReturnRequestQuery(
   )
     response(403, 'ACCESS_DENIED', 'Access denied')
 
+  const now = new Date()
+  let currentStatus = record.request.status
+  let currentUpdatedAt = record.request.updatedAt
+  if (
+    record.request.status === 'awaiting_shipment' &&
+    now > new Date(record.request.returnDeadline.getTime() + 7 * 86400000)
+  ) {
+    currentStatus = 'closed'
+    currentUpdatedAt = now
+    await db
+      .update(returnRequest)
+      .set({ status: 'closed', updatedAt: now })
+      .where(eq(returnRequest.id, id))
+  }
+
   const items = await db
     .select({
       id: returnRequestItem.id,
@@ -243,13 +261,15 @@ export async function getReturnRequestQuery(
       productName: orderItem.productName,
       quantity: returnRequestItem.quantity,
       refundCents: returnRequestItem.refundCents,
+      restockItem: returnRequestItem.restockItem,
     })
     .from(returnRequestItem)
     .innerJoin(orderItem, eq(returnRequestItem.orderItemId, orderItem.id))
     .where(eq(returnRequestItem.returnRequestId, id))
   return {
     ...record.request,
-    status: record.request.status as ReturnRequestStatus,
+    status: currentStatus as ReturnRequestStatus,
+    updatedAt: currentUpdatedAt,
     returnShippingPayer: record.request.returnShippingPayer as 'buyer' | 'seller',
     items,
   }
@@ -304,13 +324,37 @@ export async function updateReturnShipmentQuery(
   input: z.infer<typeof updateReturnShipmentSchema>,
   buyerUserId: string,
 ): Promise<ReturnRequestSummary> {
+  const now = new Date()
+  const [record] = await db
+    .select({
+      id: returnRequest.id,
+      buyerUserId: returnRequest.buyerUserId,
+      status: returnRequest.status,
+      returnDeadline: returnRequest.returnDeadline,
+    })
+    .from(returnRequest)
+    .where(eq(returnRequest.id, input.returnRequestId))
+    .limit(1)
+
+  if (!record || record.buyerUserId !== buyerUserId) {
+    response(409, 'RETURN_NOT_SHIPPABLE', 'This return cannot be shipped')
+  }
+
+  if (!['authorized', 'awaiting_shipment'].includes(record.status)) {
+    response(409, 'RETURN_NOT_SHIPPABLE', 'This return cannot be shipped')
+  }
+
+  if (now > new Date(record.returnDeadline.getTime() + 72 * 3600000)) {
+    response(409, 'RETURN_DEADLINE_EXPIRED', 'Return shipping deadline has expired')
+  }
+
   const [updated] = await db
     .update(returnRequest)
     .set({
       status: 'in_transit',
       carrier: input.carrier,
       trackingNumber: input.trackingNumber,
-      updatedAt: new Date(),
+      updatedAt: now,
     })
     .where(
       and(
@@ -410,6 +454,13 @@ export async function manageReturnRequestQuery(
     }
     if (detail.returnShippingPayer === 'seller') await createSellerFundedReturnLabel(detail.id)
   } else if (input.action === 'reject') {
+    if (detail.type === 'withdrawal') {
+      response(
+        400,
+        'WITHDRAWAL_CANNOT_BE_REJECTED',
+        'Statutory withdrawal requests for eligible goods cannot be rejected by the seller',
+      )
+    }
     if (!input.reason) response(400, 'RETURN_REASON_REQUIRED', 'A rejection reason is required')
     await db
       .update(returnRequest)
@@ -424,6 +475,77 @@ export async function manageReturnRequestQuery(
       .set({ status: 'received', receivedAt: new Date(), updatedAt: new Date() })
       .where(eq(returnRequest.id, detail.id))
   } else if (input.action === 'refund') {
+    let diminishedValueCents = 0
+    let netRefundCents = detail.refundCents
+    let diminishedValueReason: string | null = null
+    let diminishedValueCategory: string | null = null
+    let diminishedValueEvidenceUrls: string[] = []
+
+    if (input.diminishedValueCents !== undefined) {
+      if (input.diminishedValueCents < 0) {
+        response(400, 'DIMINISHED_VALUE_INVALID', 'Diminished value must be non-negative')
+      }
+      const maxAllowed = detail.refundCents - detail.outboundShippingRefundCents
+      if (input.diminishedValueCents > maxAllowed) {
+        response(
+          400,
+          'DIMINISHED_VALUE_EXCEEDS_BOUNDS',
+          'Diminished value deduction exceeds maximum allowed amount',
+        )
+      }
+      if (input.diminishedValueCents > 0) {
+        if (
+          !input.diminishedValueReason ||
+          !input.diminishedValueCategory ||
+          !input.diminishedValueEvidenceUrls ||
+          input.diminishedValueEvidenceUrls.length === 0
+        ) {
+          response(
+            400,
+            'DIMINISHED_VALUE_EVIDENCE_REQUIRED',
+            'A reason, category, and evidence URLs are required when deducting diminished value',
+          )
+        }
+      }
+      diminishedValueCents = input.diminishedValueCents
+      netRefundCents = detail.refundCents - input.diminishedValueCents
+      diminishedValueReason = input.diminishedValueReason ?? null
+      diminishedValueCategory = input.diminishedValueCategory ?? null
+      diminishedValueEvidenceUrls = input.diminishedValueEvidenceUrls ?? []
+    } else if (detail.status === 'refund_pending') {
+      diminishedValueCents = detail.diminishedValueCents
+      netRefundCents = detail.netRefundCents
+      diminishedValueReason = detail.diminishedValueReason
+      diminishedValueCategory = detail.diminishedValueCategory
+      diminishedValueEvidenceUrls = detail.diminishedValueEvidenceUrls
+    }
+
+    await db
+      .update(returnRequest)
+      .set({
+        diminishedValueCents,
+        netRefundCents,
+        diminishedValueReason,
+        diminishedValueCategory,
+        diminishedValueEvidenceUrls,
+        updatedAt: new Date(),
+      })
+      .where(eq(returnRequest.id, detail.id))
+
+    if (input.restockItems && input.restockItems.length > 0) {
+      for (const entry of input.restockItems) {
+        await db
+          .update(returnRequestItem)
+          .set({ restockItem: entry.restock })
+          .where(
+            and(
+              eq(returnRequestItem.returnRequestId, detail.id),
+              eq(returnRequestItem.orderItemId, entry.orderItemId),
+            ),
+          )
+      }
+    }
+
     await refundReturnRequest(detail.id)
   } else if (input.action === 'close') {
     await db
@@ -442,15 +564,13 @@ export async function manageReturnRequestQuery(
 
 async function refundReturnRequest(id: string): Promise<void> {
   const intent = await db.transaction(async (tx) => {
-    const [request] = await tx
-      .select()
+    const [returnLookup] = await tx
+      .select({ shopOrderId: returnRequest.shopOrderId })
       .from(returnRequest)
       .where(eq(returnRequest.id, id))
-      .for('update')
       .limit(1)
-    if (!request) response(404, 'RETURN_NOT_FOUND', 'Return request not found')
-    if (!['received', 'refund_pending'].includes(request.status))
-      response(409, 'RETURN_STATE_INVALID', 'Return must be received before refund')
+    if (!returnLookup) response(404, 'RETURN_NOT_FOUND', 'Return request not found')
+
     const [order] = await tx
       .select({
         shopOrder,
@@ -464,12 +584,22 @@ async function refundReturnRequest(id: string): Promise<void> {
       .from(shopOrder)
       .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
       .innerJoin(shop, eq(shopOrder.shopId, shop.id))
-      .where(eq(shopOrder.id, request.shopOrderId))
+      .where(eq(shopOrder.id, returnLookup.shopOrderId))
       .for('update')
       .limit(1)
+
+    const [request] = await tx
+      .select()
+      .from(returnRequest)
+      .where(eq(returnRequest.id, id))
+      .for('update')
+      .limit(1)
+    if (!request) response(404, 'RETURN_NOT_FOUND', 'Return request not found')
+    if (!['received', 'refund_pending'].includes(request.status))
+      response(409, 'RETURN_STATE_INVALID', 'Return must be received before refund')
     if (!order?.paymentId) response(409, 'PAYMENT_NOT_FOUND', 'Original payment is unavailable')
     if (request.status === 'refund_pending') {
-      if (order.shopOrder.refundPendingCents !== request.refundCents) {
+      if (order.shopOrder.refundPendingCents !== request.netRefundCents) {
         response(409, 'REFUND_STATE_INVALID', 'Pending refund amount does not match the return')
       }
       const [payoutRecord] = await tx
@@ -493,7 +623,7 @@ async function refundReturnRequest(id: string): Promise<void> {
           routingReversals: [
             {
               organizationId: payoutRecord.mollieAccountId,
-              amountCents: Math.min(request.refundCents, payoutRecord.payout.amountCents),
+              amountCents: Math.min(request.netRefundCents, payoutRecord.payout.amountCents),
             },
           ],
         }
@@ -512,22 +642,22 @@ async function refundReturnRequest(id: string): Promise<void> {
     const reversalOptions = await reversePayoutForRefund(
       tx,
       request.shopOrderId,
-      request.refundCents,
+      request.netRefundCents,
       `return:${request.id}`,
     )
-    await createCreditNoteForShopOrder(request.shopOrderId, tx, request.refundCents)
+    await createCreditNoteForShopOrder(request.shopOrderId, tx, request.netRefundCents)
     await tx
       .update(returnRequest)
       .set({ status: 'refund_pending', refundAttemptedAt: new Date(), updatedAt: new Date() })
       .where(eq(returnRequest.id, id))
     await tx
       .update(shopOrder)
-      .set({ refundPendingCents: request.refundCents, updatedAt: new Date() })
+      .set({ refundPendingCents: request.netRefundCents, updatedAt: new Date() })
       .where(eq(shopOrder.id, request.shopOrderId))
     await tx
       .update(platformOrder)
       .set({
-        refundedCents: sql`${platformOrder.refundedCents} + ${request.refundCents}`,
+        refundedCents: sql`${platformOrder.refundedCents} + ${request.netRefundCents}`,
         updatedAt: new Date(),
       })
       .where(eq(platformOrder.id, order.shopOrder.platformOrderId))
@@ -541,11 +671,12 @@ async function refundReturnRequest(id: string): Promise<void> {
   })
 
   try {
-    const { molliePaymentProvider } = await import('#/integrations/mollie')
-    await molliePaymentProvider.refundPayment(intent.paymentId, intent.request.refundCents, {
-      ...intent.reversalOptions,
-      idempotencyKey: `return-refund-${intent.request.id}`,
-    })
+    if (intent.request.netRefundCents > 0) {
+      await molliePaymentProvider.refundPayment(intent.paymentId, intent.request.netRefundCents, {
+        ...intent.reversalOptions,
+        idempotencyKey: `return-refund-${intent.request.id}`,
+      })
+    }
   } catch (error) {
     logger.error('Return refund provider call failed', error, { alert: true, returnRequestId: id })
     response(
@@ -557,21 +688,27 @@ async function refundReturnRequest(id: string): Promise<void> {
 
   await db.transaction(async (tx) => {
     const items = await tx
-      .select({ productId: orderItem.productId, quantity: returnRequestItem.quantity })
+      .select({
+        productId: orderItem.productId,
+        quantity: returnRequestItem.quantity,
+        restockItem: returnRequestItem.restockItem,
+      })
       .from(returnRequestItem)
       .innerJoin(orderItem, eq(returnRequestItem.orderItemId, orderItem.id))
       .where(eq(returnRequestItem.returnRequestId, id))
     for (const item of items) {
-      await tx
-        .update(product)
-        .set({ stockCount: sql`${product.stockCount} + ${item.quantity}`, updatedAt: new Date() })
-        .where(eq(product.id, item.productId))
+      if (item.restockItem) {
+        await tx
+          .update(product)
+          .set({ stockCount: sql`${product.stockCount} + ${item.quantity}`, updatedAt: new Date() })
+          .where(eq(product.id, item.productId))
+      }
     }
     await tx
       .update(returnRequest)
       .set({ status: 'refunded', refundedAt: new Date(), updatedAt: new Date() })
       .where(eq(returnRequest.id, id))
-    const cumulativeRefund = intent.order.refundedCents + intent.request.refundCents
+    const cumulativeRefund = intent.order.refundedCents + intent.request.netRefundCents
     const orderTotal = intent.order.subtotalCents + intent.order.shippingCostCents
     await tx
       .update(shopOrder)
@@ -590,7 +727,7 @@ async function refundReturnRequest(id: string): Promise<void> {
         platformOrderId: intent.order.platformOrderId,
         shopOrderId: intent.order.id,
         returnRequestId: id,
-        refundCents: intent.request.refundCents,
+        refundCents: intent.request.netRefundCents,
         targetPath: `/returns/${id}`,
       },
     })
@@ -609,13 +746,61 @@ async function refundReturnRequest(id: string): Promise<void> {
         orderNumber: intent.orderRecord.orderNumber,
         buyerName: shippingAddress?.name ?? 'Customer',
         shopName: intent.orderRecord.shopName,
-        refundAmount: `${(intent.request.refundCents / 100).toFixed(2)} EUR`,
+        refundAmount: `${(intent.request.netRefundCents / 100).toFixed(2)} EUR`,
         orderUrl: intent.orderRecord.isGuest
           ? ''
           : `${getBaseUrl()}/orders/${intent.order.platformOrderId}`,
       },
     })
   })
+}
+
+export async function closeExpiredReturnRequestsQuery(batchSize?: number): Promise<number> {
+  const cutoff = new Date(Date.now() - 7 * 86400000)
+  const now = new Date()
+
+  if (batchSize && batchSize > 0) {
+    const expiredIds = await db
+      .select({ id: returnRequest.id })
+      .from(returnRequest)
+      .where(
+        and(
+          inArray(returnRequest.status, ['requested', 'authorized', 'awaiting_shipment']),
+          lt(returnRequest.returnDeadline, cutoff),
+        ),
+      )
+      .limit(batchSize)
+    if (expiredIds.length === 0) return 0
+    const rows = await db
+      .update(returnRequest)
+      .set({
+        status: 'closed',
+        updatedAt: now,
+      })
+      .where(
+        inArray(
+          returnRequest.id,
+          expiredIds.map((r) => r.id),
+        ),
+      )
+      .returning({ id: returnRequest.id })
+    return rows.length
+  }
+
+  const rows = await db
+    .update(returnRequest)
+    .set({
+      status: 'closed',
+      updatedAt: now,
+    })
+    .where(
+      and(
+        inArray(returnRequest.status, ['requested', 'authorized', 'awaiting_shipment']),
+        lt(returnRequest.returnDeadline, cutoff),
+      ),
+    )
+    .returning({ id: returnRequest.id })
+  return rows.length
 }
 
 export async function addReturnMessageQuery(

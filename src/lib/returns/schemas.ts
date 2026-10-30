@@ -1,5 +1,13 @@
 import z from 'zod'
 
+export const DIMINISHED_VALUE_CATEGORIES = [
+  'worn_washed',
+  'scratched_damaged',
+  'missing_packaging',
+  'broken_seal',
+  'structural_damage',
+] as const
+
 export const createReturnRequestSchema = z.object({
   shopOrderId: z.string().uuid(),
   type: z.enum(['withdrawal', 'defective']),
@@ -24,6 +32,18 @@ export const manageReturnRequestSchema = z.object({
   returnRequestId: z.string().uuid(),
   action: z.enum(['authorize', 'reject', 'mark_received', 'refund', 'close']),
   reason: z.string().trim().max(2000).optional(),
+  diminishedValueCents: z.number().int().min(0).optional(),
+  diminishedValueReason: z.string().trim().max(2000).optional(),
+  diminishedValueCategory: z.enum(DIMINISHED_VALUE_CATEGORIES).optional(),
+  diminishedValueEvidenceUrls: z.array(z.string().url()).max(10).optional(),
+  restockItems: z
+    .array(
+      z.object({
+        orderItemId: z.string().uuid(),
+        restock: z.boolean(),
+      }),
+    )
+    .optional(),
 })
 
 export const addReturnMessageSchema = z.object({

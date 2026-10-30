@@ -9,6 +9,7 @@ import {
   notification,
   orderItem,
   platformOrder,
+  returnRequest,
   shop,
   shopOrder,
   user,
@@ -42,8 +43,10 @@ const creatorUser = alias(user, 'creator')
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const RESTORABLE_NON_DELIVERY_STATUSES = new Set<OrderStatus>(['paid', 'processing', 'shipped'])
-
 function getCloseResolutionStatus(openedFromOrderStatus: OrderStatus | null): OrderStatus {
+  if (openedFromOrderStatus === 'refunded') {
+    return 'refunded'
+  }
   return openedFromOrderStatus && RESTORABLE_NON_DELIVERY_STATUSES.has(openedFromOrderStatus)
     ? openedFromOrderStatus
     : 'completed'
@@ -107,10 +110,41 @@ export async function openDisputeQuery(
       })
     }
 
+    if (input.returnRequestId) {
+      const [row] = await tx
+        .select()
+        .from(returnRequest)
+        .where(eq(returnRequest.id, input.returnRequestId))
+        .for('update')
+        .limit(1)
+
+      if (!row) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Not Found',
+            message: 'Return request not found',
+            code: 'RETURN_REQUEST_NOT_FOUND',
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      if (row.shopOrderId !== input.shopOrderId || row.buyerUserId !== buyerUserId) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Forbidden',
+            message: 'Return request does not belong to this order or buyer',
+            code: 'RETURN_REQUEST_MISMATCH',
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
     const [existingDispute] = await tx
       .select({ id: dispute.id })
       .from(dispute)
-      .where(eq(dispute.shopOrderId, input.shopOrderId))
+      .where(and(eq(dispute.shopOrderId, input.shopOrderId), eq(dispute.status, 'open')))
       .limit(1)
 
     if (existingDispute) {
@@ -125,7 +159,40 @@ export async function openDisputeQuery(
     }
 
     let eligibilityBasis: string | null = null
-    if (shopOrderRecord.status === 'delivered') {
+    if (input.returnRequestId) {
+      const allowedReturnOrderStatuses: Record<string, true> = {
+        delivered: true,
+        shipped: true,
+        completed: true,
+        refunded: true,
+      }
+      if (!allowedReturnOrderStatuses[shopOrderRecord.status]) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Request',
+            message: 'Order status does not allow return escalation dispute',
+            code: 'INVALID_ORDER_STATUS_FOR_RETURN_DISPUTE',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      const returnDisputeWindowExpiresAt = new Date(
+        shopOrderRecord.createdAt.getTime() + 60 * MS_PER_DAY,
+      )
+      if (now > returnDisputeWindowExpiresAt) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Forbidden',
+            message: 'Dispute window has expired (60 days)',
+            code: 'DISPUTE_WINDOW_EXPIRED',
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      eligibilityBasis = 'return_escalation'
+    } else if (shopOrderRecord.status === 'delivered') {
       if (!shopOrderRecord.deliveredAt) {
         throw new Response(
           JSON.stringify({
@@ -201,6 +268,7 @@ export async function openDisputeQuery(
           reason,
           description,
           openedFromOrderStatus: shopOrderRecord.status,
+          returnRequestId: input.returnRequestId ?? null,
         })
         .returning()
       created = rows[0]
@@ -216,6 +284,13 @@ export async function openDisputeQuery(
         )
       }
       throw err
+    }
+
+    if (input.returnRequestId) {
+      await tx
+        .update(returnRequest)
+        .set({ status: 'disputed', updatedAt: now })
+        .where(eq(returnRequest.id, input.returnRequestId))
     }
 
     await tx
@@ -273,6 +348,7 @@ export async function openDisputeQuery(
         platformOrderId: shopOrderRecord.platformOrderId,
         reason,
         eligibilityBasis,
+        ...(input.returnRequestId ? { returnRequestId: input.returnRequestId } : {}),
       },
     })
 
@@ -782,7 +858,32 @@ export async function resolveDisputeQuery(
   // Step 1: record the refund intent, reverse any routed payout, create the
   // credit note, and mark the dispute resolved before contacting Mollie (P0-22).
   const result = await db.transaction(async (tx) => {
-    // Acquire row-level lock on the dispute before any status-dependent action
+    // 1. Lock shop_order first in lock hierarchy
+    const [lockedShopOrder] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, disputeRecord.shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!lockedShopOrder) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // 2. Lock return_request second in lock hierarchy (if linked)
+    if (disputeRecord.returnRequestId) {
+      await tx
+        .select()
+        .from(returnRequest)
+        .where(eq(returnRequest.id, disputeRecord.returnRequestId))
+        .for('update')
+        .limit(1)
+    }
+
+    // 3. Lock dispute third in lock hierarchy
     const [lockedDispute] = await tx
       .select()
       .from(dispute)
@@ -815,18 +916,14 @@ export async function resolveDisputeQuery(
       )
     }
 
-    const [lockedShopOrder] = await tx
-      .select()
-      .from(shopOrder)
-      .where(eq(shopOrder.id, lockedDispute.shopOrderId))
-      .for('update')
-      .limit(1)
-
-    if (!lockedShopOrder) {
-      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    const targetReturnRequestId = lockedDispute.returnRequestId ?? disputeRecord.returnRequestId
+    if (targetReturnRequestId && targetReturnRequestId !== disputeRecord.returnRequestId) {
+      await tx
+        .select()
+        .from(returnRequest)
+        .where(eq(returnRequest.id, targetReturnRequestId))
+        .for('update')
+        .limit(1)
     }
 
     if (lockedShopOrder.refundPendingCents > 0) {
@@ -866,36 +963,55 @@ export async function resolveDisputeQuery(
       await createCreditNoteForShopOrder(lockedDispute.shopOrderId, tx)
     }
 
-    const [[updated]] = await Promise.all([
-      tx
-        .update(dispute)
+    const returnStatus = targetReturnRequestId
+      ? input.resolution === 'close'
+        ? 'closed'
+        : input.resolution === 'full_refund' || input.resolution === 'partial_refund'
+          ? 'refunded'
+          : null
+      : null
+
+    const [updated] = await tx
+      .update(dispute)
+      .set({
+        status: 'resolved',
+        resolution: input.resolution,
+        refundCents,
+        updatedAt: new Date(),
+      })
+      .where(eq(dispute.id, disputeId))
+      .returning()
+
+    if (targetReturnRequestId && returnStatus) {
+      await tx
+        .update(returnRequest)
         .set({
-          status: 'resolved',
-          resolution: input.resolution,
-          refundCents,
+          status: returnStatus,
+          ...(returnStatus === 'refunded' ? { refundedAt: new Date() } : {}),
           updatedAt: new Date(),
         })
-        .where(eq(dispute.id, disputeId))
-        .returning(),
-      input.resolution === 'close'
-        ? tx
-            .update(shopOrder)
-            .set({
-              status: closeResolutionStatus,
-              updatedAt: new Date(),
-            })
-            .where(eq(shopOrder.id, lockedDispute.shopOrderId))
-        : Promise.resolve(),
-      shopOrderRefundIncrement > 0
-        ? tx
-            .update(platformOrder)
-            .set({
-              refundedCents: sql`${platformOrder.refundedCents} + ${shopOrderRefundIncrement}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(platformOrder.id, lockedShopOrder.platformOrderId))
-        : Promise.resolve(),
-    ])
+        .where(eq(returnRequest.id, targetReturnRequestId))
+    }
+
+    if (input.resolution === 'close') {
+      await tx
+        .update(shopOrder)
+        .set({
+          status: closeResolutionStatus,
+          updatedAt: new Date(),
+        })
+        .where(eq(shopOrder.id, lockedDispute.shopOrderId))
+    }
+
+    if (shopOrderRefundIncrement > 0) {
+      await tx
+        .update(platformOrder)
+        .set({
+          refundedCents: sql`${platformOrder.refundedCents} + ${shopOrderRefundIncrement}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(platformOrder.id, lockedShopOrder.platformOrderId))
+    }
 
     await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
 

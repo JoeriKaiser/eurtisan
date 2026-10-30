@@ -493,11 +493,19 @@ async function scanFinancialTotals(
 
       const payoutRow = payoutByOrder.get(order.id)
       if (!payoutRow) continue
-      const expectedPayout =
+      const baseExpectedPayout =
         order.subtotalCents -
         expectedFee +
         (order.shippingMethod === 'manual' ? order.shippingCostCents : 0)
-      if (payoutRow.amountCents !== expectedPayout) {
+      const effectiveRefundCents = order.refundedCents + order.refundPendingCents
+      const netRefundDeduction =
+        payoutRow.status === 'pending' && effectiveRefundCents > 0
+          ? Math.round(effectiveRefundCents * (1 - PLATFORM_FEE_PERCENT / 100))
+          : 0
+      const expectedPayout = Math.max(0, baseExpectedPayout - netRefundDeduction)
+
+      const isZeroedReversal = payoutRow.status === 'reversed' && payoutRow.amountCents === 0
+      if (!isZeroedReversal && payoutRow.amountCents !== expectedPayout) {
         await report(
           'payout_amount',
           'payout',
@@ -509,11 +517,12 @@ async function scanFinancialTotals(
       }
       const feeInvoice = platformFeeInvoices[0]
       if (feeInvoice) {
-        const invoiceDerivedPayout =
+        const baseInvoiceDerivedPayout =
           order.subtotalCents -
           feeInvoice.totalCents +
           (order.shippingMethod === 'manual' ? order.shippingCostCents : 0)
-        if (payoutRow.amountCents !== invoiceDerivedPayout) {
+        const invoiceDerivedPayout = Math.max(0, baseInvoiceDerivedPayout - netRefundDeduction)
+        if (!isZeroedReversal && payoutRow.amountCents !== invoiceDerivedPayout) {
           await report(
             'payout_invoice_disagreement',
             'payout',
