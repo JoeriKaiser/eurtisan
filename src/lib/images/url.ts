@@ -13,7 +13,7 @@ export interface ImageUrlOptions {
   format?: 'webp' | 'avif' | 'jpeg' | 'png'
 }
 
-const imageKeyRegex = /^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/
+const imageKeyRegex = /^(products|shops|returns)\/[^/]+\.(jpg|jpeg|png|webp)$/
 const imageUrlRegex = /^(https?:\/\/[^/]+|\/uploads\/).+\.(jpg|jpeg|png|webp)$/i
 
 /**
@@ -43,11 +43,16 @@ export function extractKeyFromUrl(url: string): string | null {
   const uploadsShopMatch = url.match(/\/uploads\/(shops\/[^/]+\.(jpg|jpeg|png|webp))$/)
   if (uploadsShopMatch) return uploadsShopMatch[1]
 
+  const uploadsReturnsMatch = url.match(/\/uploads\/(returns\/[^/]+\.(jpg|jpeg|png|webp))$/)
+  if (uploadsReturnsMatch) return uploadsReturnsMatch[1]
+
   // S3 object URL: http(s)://.../eurtisan-uploads/products/...
   const s3Match = url.match(/\/eurtisan-uploads\/(products\/[^/]+\.(jpg|jpeg|png|webp))$/)
   if (s3Match) return s3Match[1]
   const s3ShopMatch = url.match(/\/eurtisan-uploads\/(shops\/[^/]+\.(jpg|jpeg|png|webp))$/)
   if (s3ShopMatch) return s3ShopMatch[1]
+  const s3ReturnsMatch = url.match(/\/eurtisan-uploads\/(returns\/[^/]+\.(jpg|jpeg|png|webp))$/)
+  if (s3ReturnsMatch) return s3ReturnsMatch[1]
 
   return null
 }

@@ -1,7 +1,7 @@
 export type PayoutStatus = 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed' | 'returned'
 
 const VALID_PAYOUT_TRANSITIONS: Record<PayoutStatus, PayoutStatus[]> = {
-  pending: ['in_transit', 'failed'],
+  pending: ['in_transit', 'failed', 'reversed'],
   failed: ['in_transit', 'failed'],
   in_transit: ['sent', 'failed', 'reversed', 'returned'],
   sent: ['reversed', 'returned'],

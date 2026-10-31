@@ -9,6 +9,7 @@ import {
   notification,
   payout,
   platformOrder,
+  returnRequest,
   shopOrder,
 } from '#/db/schema'
 
@@ -146,6 +147,40 @@ async function seedProductAndReservation(platformOrderId: string, shopOrderId: s
   })
 
   return prod
+}
+
+async function seedReturnRequest(options: {
+  shopOrderId: string
+  buyerUserId: string
+  status?:
+    | 'requested'
+    | 'authorized'
+    | 'awaiting_shipment'
+    | 'in_transit'
+    | 'received'
+    | 'refund_pending'
+    | 'refunded'
+    | 'rejected'
+    | 'disputed'
+    | 'closed'
+}) {
+  const [created] = await db
+    .insert(returnRequest)
+    .values({
+      shopOrderId: options.shopOrderId,
+      buyerUserId: options.buyerUserId,
+      type: 'withdrawal',
+      status: options.status ?? 'requested',
+      reason: 'Return requested',
+      returnShippingPayer: 'buyer',
+      requestDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      returnDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      refundCents: 2000,
+      outboundShippingRefundCents: 500,
+      netRefundCents: 2500,
+    })
+    .returning()
+  return created
 }
 
 /* -------------------------------------------------------------------------- */
@@ -528,6 +563,155 @@ describe('openDisputeQuery', () => {
     )
 
     expect(result.status).toBe('open')
+  })
+
+  it('allows opening a dispute linking a return request on an order in refunded status', async () => {
+    await seedUser()
+    await seedShop()
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    await db.update(shopOrder).set({ status: 'refunded' }).where(eq(shopOrder.id, so.id))
+
+    const rr = await seedReturnRequest({
+      shopOrderId: so.id,
+      buyerUserId: 'user-1',
+      status: 'rejected',
+    })
+
+    const result = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        returnRequestId: rr.id,
+        reason: 'Refunded return contested',
+        description: 'Return was rejected unfairly after partial refund',
+      },
+      'user-1',
+    )
+
+    expect(result.id).toBeDefined()
+    expect(result.status).toBe('open')
+
+    const [disputeRecord] = await db.select().from(dispute).where(eq(dispute.id, result.id))
+    expect(disputeRecord.returnRequestId).toBe(rr.id)
+    expect(disputeRecord.openedFromOrderStatus).toBe('refunded')
+  })
+
+  it('allows opening a dispute linking a return request on an order in completed status', async () => {
+    await seedUser()
+    await seedShop()
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    await db.update(shopOrder).set({ status: 'completed' }).where(eq(shopOrder.id, so.id))
+
+    const rr = await seedReturnRequest({
+      shopOrderId: so.id,
+      buyerUserId: 'user-1',
+      status: 'rejected',
+    })
+
+    const result = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        returnRequestId: rr.id,
+        reason: 'Completed order return contested',
+        description: 'Seller closed return unjustly',
+      },
+      'user-1',
+    )
+
+    expect(result.id).toBeDefined()
+    expect(result.status).toBe('open')
+
+    const [disputeRecord] = await db.select().from(dispute).where(eq(dispute.id, result.id))
+    expect(disputeRecord.returnRequestId).toBe(rr.id)
+    expect(disputeRecord.openedFromOrderStatus).toBe('completed')
+  })
+
+  it('transitions return request to disputed when dispute is opened', async () => {
+    await seedUser()
+    await seedShop()
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const rr = await seedReturnRequest({
+      shopOrderId: so.id,
+      buyerUserId: 'user-1',
+      status: 'requested',
+    })
+
+    await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        returnRequestId: rr.id,
+        reason: 'Return escalation',
+        description: 'Escalating return to dispute',
+      },
+      'user-1',
+    )
+
+    const [updatedRr] = await db.select().from(returnRequest).where(eq(returnRequest.id, rr.id))
+    expect(updatedRr.status).toBe('disputed')
+  })
+
+  it('allows opening sequential disputes on the same order if previous dispute was closed or resolved', async () => {
+    await seedUser()
+    await seedShop()
+    const admin = await seedUser({ id: 'admin-1', email: 'admin-1@example.com', role: 'admin' })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+
+    // 1. Open first dispute
+    const d1 = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'First issue',
+        description: 'First dispute description',
+      },
+      'user-1',
+    )
+    expect(d1.status).toBe('open')
+
+    // While d1 is open, opening another dispute fails with 409
+    await expect(
+      openDisputeQuery(
+        {
+          shopOrderId: so.id,
+          reason: 'Concurrent issue',
+          description: 'Cannot open second dispute while first is open',
+        },
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ status: 409 })
+
+    // 2. Resolve first dispute by closing it
+    await resolveDisputeQuery(d1.id, { resolution: 'close' }, { userId: admin.id, role: 'admin' })
+
+    const [closedD1] = await db.select().from(dispute).where(eq(dispute.id, d1.id))
+    expect(closedD1.status).toBe('resolved')
+
+    // 3. Open second dispute on the same order (via return escalation on completed order)
+    const rr = await seedReturnRequest({
+      shopOrderId: so.id,
+      buyerUserId: 'user-1',
+      status: 'requested',
+    })
+
+    const d2 = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        returnRequestId: rr.id,
+        reason: 'Second issue after return',
+        description: 'Sequential dispute on same order after first dispute closed',
+      },
+      'user-1',
+    )
+
+    expect(d2.id).toBeDefined()
+    expect(d2.id).not.toBe(d1.id)
+    expect(d2.status).toBe('open')
+
+    // Both disputes exist in database for the same shopOrder
+    const orderDisputes = await db.select().from(dispute).where(eq(dispute.shopOrderId, so.id))
+    expect(orderDisputes).toHaveLength(2)
   })
 })
 
@@ -1920,5 +2104,69 @@ describe('resolveDisputeQuery', () => {
 
     expect(refundSpy).not.toHaveBeenCalled()
     refundSpy.mockRestore()
+  })
+
+  it('synchronizes return request status to refunded when dispute is resolved with full_refund or partial_refund', async () => {
+    await seedUser()
+    await seedShop()
+    const admin = await seedUser({ id: 'admin-1', email: 'admin-1@example.com', role: 'admin' })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const rr = await seedReturnRequest({
+      shopOrderId: so.id,
+      buyerUserId: 'user-1',
+      status: 'requested',
+    })
+
+    const d = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        returnRequestId: rr.id,
+        reason: 'Return dispute',
+        description: 'Need full refund for return',
+      },
+      'user-1',
+    )
+
+    const [inFlightRr] = await db.select().from(returnRequest).where(eq(returnRequest.id, rr.id))
+    expect(inFlightRr.status).toBe('disputed')
+
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: admin.id, role: 'admin' },
+    )
+
+    const [refundedRr] = await db.select().from(returnRequest).where(eq(returnRequest.id, rr.id))
+    expect(refundedRr.status).toBe('refunded')
+    expect(refundedRr.refundedAt).toBeInstanceOf(Date)
+  })
+
+  it('synchronizes return request status to closed when dispute is resolved with close', async () => {
+    await seedUser()
+    await seedShop()
+    const admin = await seedUser({ id: 'admin-1', email: 'admin-1@example.com', role: 'admin' })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const rr = await seedReturnRequest({
+      shopOrderId: so.id,
+      buyerUserId: 'user-1',
+      status: 'requested',
+    })
+
+    const d = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        returnRequestId: rr.id,
+        reason: 'Return dispute',
+        description: 'Closing this return dispute',
+      },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: admin.id, role: 'admin' })
+
+    const [closedRr] = await db.select().from(returnRequest).where(eq(returnRequest.id, rr.id))
+    expect(closedRr.status).toBe('closed')
   })
 })

@@ -29,7 +29,7 @@ export { extractKeyFromUrl, isExternalImageUrl }
 
 const PRESIGNED_URL_EXPIRY_SECONDS = 300 // 5 minutes
 
-const ALLOWED_KEY_PREFIXES = ['products/', 'shops/'] as const
+const ALLOWED_KEY_PREFIXES = ['products/', 'shops/', 'returns/'] as const
 const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 export class ImageStorageError extends Error {
@@ -68,7 +68,10 @@ function validateContentType(contentType: string): void {
 /**
  * Generates a unique S3 object key for a new image.
  */
-export function generateImageKey(prefix: 'products' | 'shops', extension: string): string {
+export function generateImageKey(
+  prefix: 'products' | 'shops' | 'returns',
+  extension: string,
+): string {
   const ext = extension.replace(/^\./, '')
   const id = crypto.randomUUID()
   return `${prefix}/${id}.${ext}`

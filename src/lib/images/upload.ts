@@ -12,7 +12,7 @@ import { authMiddleware } from '../auth-middleware'
 import type { SafeUser } from '../server-auth'
 
 const presignedUrlSchema = z.object({
-  prefix: z.enum(['products', 'shops']),
+  prefix: z.enum(['products', 'shops', 'returns']),
   contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
   onboardingDraftId: z.string().uuid().optional(),
 })

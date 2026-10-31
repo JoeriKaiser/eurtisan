@@ -85,7 +85,7 @@ export function validateImageKey(key: string): void {
   if (!key || key.length > 512) {
     throw new ImageValidationError('Invalid image key')
   }
-  if (!key.match(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/)) {
+  if (!key.match(/^(products|shops|returns)\/[^/]+\.(jpg|jpeg|png|webp)$/)) {
     throw new ImageValidationError('Invalid image key format')
   }
 }

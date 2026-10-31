@@ -82,6 +82,10 @@ describe('validateImageKey', () => {
     expect(() => validateImageKey('shops/shop-1.webp')).not.toThrow()
   })
 
+  it('accepts a valid returns key', () => {
+    expect(() => validateImageKey('returns/evidence-123.jpg')).not.toThrow()
+  })
+
   it('throws for empty key', () => {
     expect(() => validateImageKey('')).toThrow(ImageValidationError)
   })
