@@ -606,6 +606,49 @@ describe('checkout', () => {
 
       expect(createPayment).not.toHaveBeenCalled()
     })
+    it('catches unique constraint collision on checkoutAttemptId and returns existing order', async () => {
+      await seedUser()
+      await seedShop({
+        shippingOrigin: {
+          street: '456 Workshop Lane',
+          city: 'Paris',
+          postalCode: '75001',
+          country: 'FR',
+          processingTimeDays: { min: 2, max: 5 },
+        },
+      })
+      const c = await createCart('user-1')
+      const p = await seedProduct()
+      await createCartItem(c.id, p.id, { quantity: 1 })
+
+      const summary = await getCheckoutSummaryQuery(c.id, 'user-1', {
+        name: 'Test User',
+        street: '123 Main St',
+        city: 'Berlin',
+        postalCode: '10115',
+        country: 'DE',
+      })
+      const shippingOption = summary?.shops[0]?.shippingOptions[0]
+      if (!shippingOption) throw new Error('Expected shipping option')
+
+      const attemptId = crypto.randomUUID()
+      const input = makeInput(c.id, {
+        checkoutAttemptId: attemptId,
+        shippingSelections: [
+          { shopId: 'shop-1', method: shippingOption.method, costCents: shippingOption.costCents },
+        ],
+      })
+
+      const provider = createStubPaymentProvider()
+      const result1 = await createCheckoutWithProvider(input, 'user-1', provider)
+      expect(result1.platformOrderId).toBeDefined()
+      expect(result1.checkoutUrl).toContain('https://checkout.mollie.com/pay/')
+
+      const result2 = await createCheckoutWithProvider(input, 'user-1', provider)
+      expect(result2.platformOrderId).toBe(result1.platformOrderId)
+      expect(result2.checkoutUrl).toContain('https://checkout.mollie.com/pay/')
+      expect(result2.paymentInitiationFailed).toBe(false)
+    })
 
     it('throws 409 with productIds when stock is exhausted', async () => {
       await seedUser()

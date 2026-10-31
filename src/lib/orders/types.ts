@@ -56,6 +56,8 @@ export interface OrderDetail {
   cancellationReason: string | null
   shippingAddress: ShippingAddress
   shops: OrderShopGroup[]
+  reservationExpiresAt?: Date | null
+  paymentInitiationFailed?: boolean
 }
 
 export interface BuyerOrderShopSummary {

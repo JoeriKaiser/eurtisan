@@ -1,8 +1,9 @@
-import { and, eq, gte, inArray, isNull, lt, ne, or, sql, sum } from 'drizzle-orm'
+import { and, eq, gt, gte, inArray, isNull, lt, ne, or, sql, sum } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db } from '#/db/index'
 import { logger } from '../logger.server'
 import { inventoryOversellTotal } from '../metrics.server'
+import { strandedPendingOrders } from '../infra/metrics.server'
 import type * as schema from '#/db/schema'
 import {
   inventoryReservation,
@@ -479,47 +480,63 @@ export async function cancelAbandonedPendingPaymentOrders(
     const abandoned = await tx
       .select({ id: platformOrder.id })
       .from(platformOrder)
+      .leftJoin(
+        inventoryReservation,
+        and(
+          eq(platformOrder.id, inventoryReservation.platformOrderId),
+          gt(inventoryReservation.expiresAt, sql`now()`),
+        ),
+      )
       .where(
         and(
           eq(platformOrder.status, 'pending_payment'),
           lt(platformOrder.createdAt, sql`now() - interval '30 minutes'`),
+          isNull(inventoryReservation.id),
         ),
       )
-      .for('update', { skipLocked: true })
+      .for('update', { of: platformOrder, skipLocked: true })
       .limit(batchSize)
 
-    if (abandoned.length === 0) {
-      return { cancelledCount: 0 }
+    let cancelledCount = 0
+
+    if (abandoned.length > 0) {
+      const ids = abandoned.map((o) => o.id)
+      const now = new Date()
+
+      const cancelled = await tx
+        .update(platformOrder)
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancellationReason: 'Abandoned: payment not received within 30 minutes',
+        })
+        .where(and(inArray(platformOrder.id, ids), eq(platformOrder.status, 'pending_payment')))
+        .returning({ id: platformOrder.id })
+
+      const cancelledIds = cancelled.map((row) => row.id)
+      if (cancelledIds.length > 0) {
+        await tx
+          .update(shopOrder)
+          .set({ status: 'cancelled' })
+          .where(inArray(shopOrder.platformOrderId, cancelledIds))
+
+        await tx
+          .delete(inventoryReservation)
+          .where(inArray(inventoryReservation.platformOrderId, cancelledIds))
+
+        cancelledCount = cancelledIds.length
+      }
     }
 
-    const ids = abandoned.map((o) => o.id)
-    const now = new Date()
+    const [stranded] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(platformOrder)
+      .where(
+        and(eq(platformOrder.status, 'pending_payment'), isNull(platformOrder.molliePaymentId)),
+      )
+    strandedPendingOrders.set(Number(stranded?.count ?? 0))
 
-    const cancelled = await tx
-      .update(platformOrder)
-      .set({
-        status: 'cancelled',
-        cancelledAt: now,
-        cancellationReason: 'Abandoned: payment not received within 30 minutes',
-      })
-      .where(and(inArray(platformOrder.id, ids), eq(platformOrder.status, 'pending_payment')))
-      .returning({ id: platformOrder.id })
-
-    const cancelledIds = cancelled.map((row) => row.id)
-    if (cancelledIds.length === 0) {
-      return { cancelledCount: 0 }
-    }
-
-    await tx
-      .update(shopOrder)
-      .set({ status: 'cancelled' })
-      .where(inArray(shopOrder.platformOrderId, cancelledIds))
-
-    await tx
-      .delete(inventoryReservation)
-      .where(inArray(inventoryReservation.platformOrderId, cancelledIds))
-
-    return { cancelledCount: cancelledIds.length }
+    return { cancelledCount }
   })
 }
 

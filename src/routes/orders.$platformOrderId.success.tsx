@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 import { NotFoundPage } from '#/components/NotFoundPage'
 import { getBuyerOrderDetail, requireOrderAccess, type OrderDetail } from '#/lib/orders'
 import { m } from '#/paraglide/messages'
@@ -16,19 +16,6 @@ export const Route = createFileRoute('/orders/$platformOrderId/success')({
         throw notFound()
       }
       throw err
-    }
-
-    // If the order is still pending payment and was created more than 5 minutes ago,
-    // redirect to the standard order details page.
-    if (order.status === 'pending_payment') {
-      const orderAgeMs = Date.now() - new Date(order.createdAt).getTime()
-      const fiveMinutesMs = 5 * 60 * 1000
-      if (orderAgeMs > fiveMinutesMs) {
-        throw redirect({
-          to: '/orders/$platformOrderId',
-          params: { platformOrderId: params.platformOrderId },
-        })
-      }
     }
 
     return { order }
