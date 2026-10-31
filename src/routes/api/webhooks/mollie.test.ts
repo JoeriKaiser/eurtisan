@@ -393,7 +393,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
   })
 
   describe('payment status handling', () => {
-    it('cancels the order and retains its active reservation when payment status is expired', async () => {
+    it('retains active reservation and keeps order pending_payment when payment status is expired', async () => {
       stubPaymentStatus = 'expired'
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
@@ -410,22 +410,22 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
       expect(res.status).toBe(200)
       const body = await res.json()
-      expect(body.status).toBe('cancelled')
+      expect(body.status).toBe('already_processed')
 
       const [updatedOrder] = await db
         .select({ status: platformOrder.status, cancelledAt: platformOrder.cancelledAt })
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('cancelled')
-      expect(updatedOrder.cancelledAt).not.toBeNull()
+      expect(updatedOrder.status).toBe('pending_payment')
+      expect(updatedOrder.cancelledAt).toBeNull()
 
       const [updatedShopOrder] = await db
         .select({ status: shopOrder.status })
         .from(shopOrder)
         .where(eq(shopOrder.id, shopOrd.id))
         .limit(1)
-      expect(updatedShopOrder.status).toBe('cancelled')
+      expect(updatedShopOrder.status).toBe('pending_payment')
 
       const reservations = await db
         .select()
@@ -434,7 +434,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       expect(reservations).toHaveLength(1)
     })
 
-    it('cancels the order and retains its active reservation when payment status is failed', async () => {
+    it('retains active reservation and keeps order pending_payment when payment status is failed', async () => {
       stubPaymentStatus = 'failed'
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
@@ -451,15 +451,15 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
       expect(res.status).toBe(200)
       const body = await res.json()
-      expect(body.status).toBe('cancelled')
+      expect(body.status).toBe('already_processed')
 
       const [updatedOrder] = await db
-        .select({ status: platformOrder.status })
+        .select({ status: platformOrder.status, cancelledAt: platformOrder.cancelledAt })
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('cancelled')
-
+      expect(updatedOrder.status).toBe('pending_payment')
+      expect(updatedOrder.cancelledAt).toBeNull()
       const reservations = await db
         .select()
         .from(inventoryReservation)
@@ -467,7 +467,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       expect(reservations).toHaveLength(1)
     })
 
-    it('cancels the order and retains its active reservation when payment status is cancelled', async () => {
+    it('retains active reservation and keeps order pending_payment when payment status is cancelled', async () => {
       stubPaymentStatus = 'cancelled'
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
@@ -484,14 +484,14 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
       expect(res.status).toBe(200)
       const body = await res.json()
-      expect(body.status).toBe('cancelled')
+      expect(body.status).toBe('already_processed')
 
       const [updatedOrder] = await db
         .select({ status: platformOrder.status })
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('cancelled')
+      expect(updatedOrder.status).toBe('pending_payment')
 
       const reservations = await db
         .select()
@@ -530,7 +530,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
       await seedProduct()
       await seedOrderItem({ shopOrderId: shopOrd.id })
-      await seedInventoryReservation()
+      await seedInventoryReservation({ expiresAt: new Date(Date.now() - 60_000) })
 
       const provider = createStubPaymentProvider()
       const req = () =>
@@ -547,6 +547,32 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       expect(res2.status).toBe(200)
       const body2 = await res2.json()
       expect(body2.status).toBe('already_processed')
+    })
+    it('cancels the order when payment status is cancelled and reservation has expired', async () => {
+      stubPaymentStatus = 'cancelled'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      await seedProduct()
+      await seedOrderItem({ shopOrderId: shopOrd.id })
+      await seedInventoryReservation({ expiresAt: new Date(Date.now() - 60_000) })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('cancelled')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('cancelled')
     })
   })
 
