@@ -1,8 +1,9 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, gt, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import {
   dispute,
   invoices,
+  inventoryReservation,
   orderItem,
   platformOrder,
   productImage,
@@ -65,6 +66,7 @@ export async function getBuyerOrderDetailQuery(
       cancellationReason: platformOrder.cancellationReason,
       shippingAddress: platformOrder.shippingAddress,
       userId: platformOrder.userId,
+      molliePaymentId: platformOrder.molliePaymentId,
     })
     .from(platformOrder)
     .where(eq(platformOrder.id, platformOrderId))
@@ -261,6 +263,18 @@ export async function getBuyerOrderDetailQuery(
     }
   })
 
+  const [reservation] = await db
+    .select({ expiresAt: inventoryReservation.expiresAt })
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.platformOrderId, platformOrderId),
+        gt(inventoryReservation.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(inventoryReservation.expiresAt))
+    .limit(1)
+
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -271,6 +285,8 @@ export async function getBuyerOrderDetailQuery(
     cancellationReason: order.cancellationReason,
     shippingAddress: decryptJsonb<ShippingAddress>(order.shippingAddress),
     shops,
+    reservationExpiresAt: reservation?.expiresAt ?? null,
+    paymentInitiationFailed: order.status === 'pending_payment' && order.molliePaymentId === null,
   }
 }
 
@@ -290,6 +306,7 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
       cancellationReason: platformOrder.cancellationReason,
       shippingAddress: platformOrder.shippingAddress,
       userId: platformOrder.userId,
+      molliePaymentId: platformOrder.molliePaymentId,
     })
     .from(platformOrder)
     .where(eq(platformOrder.orderNumber, orderNumber))
@@ -483,6 +500,18 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
     }
   })
 
+  const [reservation] = await db
+    .select({ expiresAt: inventoryReservation.expiresAt })
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.platformOrderId, platformOrderId),
+        gt(inventoryReservation.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(desc(inventoryReservation.expiresAt))
+    .limit(1)
+
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -493,6 +522,8 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
     cancellationReason: order.cancellationReason,
     shippingAddress: decryptJsonb<ShippingAddress>(order.shippingAddress),
     shops,
+    reservationExpiresAt: reservation?.expiresAt ?? null,
+    paymentInitiationFailed: order.status === 'pending_payment' && order.molliePaymentId === null,
   }
 }
 

@@ -153,6 +153,33 @@ export const molliePaymentReconciliationErrorsTotal = new Counter({
   registers: [metricsRegistry],
 })
 
+export const checkoutCollisionTotal = new Counter({
+  name: 'eurtisan_checkout_collision_total',
+  help: 'Total checkout attempt unique constraint collisions',
+  labelNames: ['outcome'] as const,
+  registers: [metricsRegistry],
+})
+
+export const duplicatePaymentCapturesTotal = new Counter({
+  name: 'eurtisan_duplicate_payment_captures_total',
+  help: 'Total duplicate payment captures automatically refunded',
+  labelNames: ['provider'] as const,
+  registers: [metricsRegistry],
+})
+
+export const paymentInitiationRetriesTotal = new Counter({
+  name: 'eurtisan_payment_initiation_retries_total',
+  help: 'Total payment retry initiations',
+  labelNames: ['status'] as const,
+  registers: [metricsRegistry],
+})
+
+export const strandedPendingOrders = new Gauge({
+  name: 'eurtisan_stranded_pending_orders_total',
+  help: 'Total pending payment orders without a payment provider ID',
+  registers: [metricsRegistry],
+})
+
 export const sendcloudWebhookFailedTotal = new Counter({
   name: 'eurtisan_sendcloud_webhook_failed_total',
   help: 'Sendcloud webhook requests that failed signature verification or returned 5xx',

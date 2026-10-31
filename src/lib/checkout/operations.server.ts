@@ -1,9 +1,10 @@
-import { and, eq, gt, inArray } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import {
   cart,
   cartItem,
   inventoryReservation,
+  paymentAttempt,
   platformOrder,
   product,
   shop,
@@ -12,12 +13,13 @@ import {
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import type { ShippingAddress as ProviderShippingAddress } from '#/integrations/shipping'
-import { decryptJsonb } from '../encryption.server'
+import { decrypt, decryptJsonb } from '../encryption.server'
+import { checkoutCollisionTotal } from '../infra/metrics.server'
 import { ordersCreatedTotal } from '../metrics.server'
 import { logOrderCreated } from '../order-logger'
 import type { PaymentProvider } from '../payment-provider'
 import { scheduleCheckoutPostOrderNotifications } from './notifications.server'
-import { persistCheckoutOrder } from './order-persistence.server'
+import { persistCheckoutOrder, type PersistedCheckoutOrder } from './order-persistence.server'
 import { initiateCheckoutPayment, retryPayment } from './payment.server'
 import { validateCheckoutShippingSelectionDetails } from './shipping.server'
 import type { CheckoutInput, CheckoutItem, CreateCheckoutResult } from './types'
@@ -107,6 +109,7 @@ export async function createCheckoutWithProvider(
     return {
       platformOrderId: existingOrder.id,
       checkoutUrl: payment.checkoutUrl,
+      paymentInitiationFailed: false,
       reservationExpiresAt: reservation?.expiresAt ?? new Date(),
     }
   }
@@ -191,13 +194,70 @@ export async function createCheckoutWithProvider(
     input.shippingSelections,
   )
 
-  const result = await persistCheckoutOrder(
-    input,
-    userId,
-    shippingDetailsByShop,
-    buyer?.isAnonymous === true,
-    buyer?.email ?? '',
-  )
+  let result: PersistedCheckoutOrder
+  try {
+    result = await persistCheckoutOrder(
+      input,
+      userId,
+      shippingDetailsByShop,
+      buyer?.isAnonymous === true,
+      buyer?.email ?? '',
+    )
+  } catch (error) {
+    const err = error && typeof error === 'object' ? (error as Record<string, unknown>) : null
+    const cause =
+      err?.cause && typeof err.cause === 'object' ? (err.cause as Record<string, unknown>) : null
+    const isUniqueCollision =
+      err?.code === '23505' ||
+      cause?.code === '23505' ||
+      (typeof err?.message === 'string' &&
+        err.message.includes('platform_order_checkout_attempt_id_unique'))
+    if (isUniqueCollision && input.checkoutAttemptId) {
+      const attemptId = input.checkoutAttemptId
+      checkoutCollisionTotal.inc({ outcome: 'returned_existing' })
+      const [collidedOrder] = await db
+        .select()
+        .from(platformOrder)
+        .where(eq(platformOrder.checkoutAttemptId, attemptId))
+        .limit(1)
+
+      if (collidedOrder) {
+        const [reservation] = await db
+          .select()
+          .from(inventoryReservation)
+          .where(
+            and(
+              eq(inventoryReservation.platformOrderId, collidedOrder.id),
+              gt(inventoryReservation.expiresAt, new Date()),
+            ),
+          )
+          .limit(1)
+
+        const [attempt] = await db
+          .select()
+          .from(paymentAttempt)
+          .where(
+            and(
+              eq(paymentAttempt.platformOrderId, collidedOrder.id),
+              eq(paymentAttempt.status, 'completed'),
+            ),
+          )
+          .orderBy(desc(paymentAttempt.createdAt))
+          .limit(1)
+
+        const checkoutUrl = attempt?.checkoutUrl ? decrypt(attempt.checkoutUrl) : null
+
+        return {
+          platformOrderId: collidedOrder.id,
+          checkoutUrl,
+          paymentInitiationFailed: false,
+          reservationExpiresAt: reservation?.expiresAt ?? new Date(),
+        }
+      }
+    }
+
+    throw error
+  }
   const checkoutUrl = await initiateCheckoutPayment(
     result.platformOrderId,
     result.grandTotalCents,

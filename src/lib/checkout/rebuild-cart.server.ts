@@ -2,7 +2,8 @@ import '@tanstack/react-start/server-only'
 
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, shopOrder } from '#/db/schema'
+import { orderItem, platformOrder, shopOrder } from '#/db/schema'
+import { releaseStockInTx } from '../inventory.server'
 import {
   ANON_CART_DAYS,
   AUTH_CART_DAYS,
@@ -21,6 +22,32 @@ export async function rebuildCartFromOrderQuery(
   platformOrderId: string,
   userId: string | null,
 ): Promise<{ added: number; skipped: number }> {
+  const [order] = await db
+    .select({ status: platformOrder.status })
+    .from(platformOrder)
+    .where(eq(platformOrder.id, platformOrderId))
+    .limit(1)
+
+  if (order?.status === 'pending_payment') {
+    await db.transaction(async (tx) => {
+      const now = new Date()
+      await tx
+        .update(platformOrder)
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancellationReason: 'Abandoned: cart rebuilt by buyer',
+          updatedAt: now,
+        })
+        .where(eq(platformOrder.id, platformOrderId))
+      await tx
+        .update(shopOrder)
+        .set({ status: 'cancelled', updatedAt: now })
+        .where(eq(shopOrder.platformOrderId, platformOrderId))
+      await releaseStockInTx(tx, platformOrderId)
+    })
+  }
+
   const items = await db
     .select({ productId: orderItem.productId, quantity: orderItem.quantity })
     .from(orderItem)

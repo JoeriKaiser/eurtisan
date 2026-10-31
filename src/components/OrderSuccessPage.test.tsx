@@ -257,6 +257,38 @@ describe('OrderSuccessPage', () => {
         expect(screen.getByText('Payment provider error')).toBeDefined()
       })
     })
+
+    it('renders initiation failure warning and retry button when paymentInitiationFailed is true', () => {
+      const order = makeOrder('pending_payment')
+      order.paymentInitiationFailed = true
+      order.reservationExpiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      render(<OrderSuccessPage order={order} onRetryPayment={vi.fn()} />)
+
+      expect(screen.getByRole('heading', { name: 'Payment could not be started' })).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Retry payment' })).toBeDefined()
+    })
+
+    it('renders live reservation countdown timer when reservationExpiresAt is present', () => {
+      const order = makeOrder('pending_payment')
+      order.reservationExpiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      render(<OrderSuccessPage order={order} onRetryPayment={vi.fn()} />)
+
+      expect(screen.getByText(/Items held for/)).toBeDefined()
+    })
+
+    it('enforces cooldown on retry payment button after click', async () => {
+      const onRetryPayment = vi.fn().mockImplementation(() => new Promise(() => {}))
+      const order = makeOrder('pending_payment')
+      order.reservationExpiresAt = new Date(Date.now() + 10 * 60 * 1000)
+      render(<OrderSuccessPage order={order} onRetryPayment={onRetryPayment} />)
+
+      const btn = screen.getByRole('button', { name: 'Retry payment' })
+      fireEvent.click(btn)
+
+      await waitFor(() => {
+        expect(btn.getAttribute('disabled')).not.toBeNull()
+      })
+    })
   })
 
   describe('cancelled state', () => {

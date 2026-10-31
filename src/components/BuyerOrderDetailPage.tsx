@@ -1,18 +1,22 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import {
+  AlertCircle,
   AlertTriangle,
-  MessageSquare,
   ArrowLeft,
+  Clock,
   Download,
   ExternalLink,
   ImageOff,
   MapPin,
+  MessageSquare,
   Package,
   Star,
   Truck,
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { useCountdown, useReservationCountdown } from '#/hooks/useCountdown'
+import { rebuildCartFromOrder, retryPayment } from '#/lib/checkout'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import {
@@ -37,6 +41,11 @@ import { m } from '#/paraglide/messages'
 
 function formatDate(date: Date): string {
   return formatDateLong(new Date(date))
+}
+function formatRemainingTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${minutes}:${secs.toString().padStart(2, '0')}`
 }
 
 function isValidUrl(url: string | null): url is string {
@@ -109,6 +118,47 @@ export default function BuyerOrderDetailPage({
   // eslint-disable-next-line
 }: BuyerOrderDetailPageProps) {
   const isCancelled = order.status === 'cancelled'
+  const isPending = order.status === 'pending_payment'
+  const remainingSeconds = useReservationCountdown(order.reservationExpiresAt)
+  const cooldown = useCountdown()
+  const [retryLoading, setRetryLoading] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
+
+  const handleRetryPayment = async () => {
+    if (cooldown.remaining > 0) return
+    cooldown.start(15)
+    setRetryLoading(true)
+    setRetryError(null)
+    try {
+      const result = await retryPayment({ data: { platformOrderId: order.id } })
+      if (result?.checkoutUrl) {
+        window.location.href = result.checkoutUrl
+        return
+      }
+      setRetryError(m.checkout_missing_url())
+    } catch (err) {
+      if (err instanceof Response) {
+        const body = await err.json().catch(() => ({}))
+        setRetryError(body.message || m.checkout_error_submit())
+      } else {
+        setRetryError(m.checkout_error_submit())
+      }
+    } finally {
+      setRetryLoading(false)
+    }
+  }
+
+  const handleRebuildCart = async () => {
+    setRetryLoading(true)
+    setRetryError(null)
+    try {
+      const result = await rebuildCartFromOrder({ data: { platformOrderId: order.id } })
+      window.location.href = result.skipped > 0 ? '/cart?message=stock_changed' : '/cart'
+    } catch {
+      setRetryError(m.order_failed_rebuild_error())
+      setRetryLoading(false)
+    }
+  }
   // eslint-disable-next-line
   const [reviews, setReviews] = useState<Record<string, ReviewableItem>>(() =>
     Object.fromEntries(reviewableItems.map((r) => [`${r.shopOrderId}-${r.productId}`, r])),
@@ -275,6 +325,65 @@ export default function BuyerOrderDetailPage({
             </div>
           </div>
 
+          {isPending && (
+            <div className='mb-6 rounded-lg border border-warning/20 bg-warning-subtle p-4'>
+              <div className='flex items-start gap-3'>
+                {order.paymentInitiationFailed ? (
+                  <AlertCircle
+                    className='size-5 text-warning flex-shrink-0 mt-0.5'
+                    aria-hidden='true'
+                  />
+                ) : (
+                  <Clock className='size-5 text-warning flex-shrink-0 mt-0.5' aria-hidden='true' />
+                )}
+                <div className='flex-1'>
+                  <p className='font-medium text-warning'>
+                    {order.paymentInitiationFailed
+                      ? 'Payment could not be started'
+                      : m.order_pending_title()}
+                  </p>
+                  <p className='mt-1 text-sm text-text-secondary'>
+                    {order.paymentInitiationFailed
+                      ? remainingSeconds > 0
+                        ? `Your items are held for ${formatRemainingTime(remainingSeconds)}. Please submit payment again.`
+                        : 'Your inventory reservation has expired. Please rebuild your cart to continue.'
+                      : remainingSeconds > 0
+                        ? `We are awaiting payment confirmation. Your items are held for ${formatRemainingTime(remainingSeconds)}.`
+                        : 'Your inventory reservation has expired. Please rebuild your cart to continue.'}
+                  </p>
+                  <div className='mt-3 flex flex-wrap items-center gap-3'>
+                    {remainingSeconds > 0 && (
+                      <Button
+                        size='sm'
+                        onClick={() => void handleRetryPayment()}
+                        isLoading={retryLoading}
+                        disabled={retryLoading || cooldown.remaining > 0}
+                      >
+                        {cooldown.remaining > 0
+                          ? `Retry payment (${cooldown.remaining}s)`
+                          : m.order_pending_retry_payment()}
+                      </Button>
+                    )}
+                    {remainingSeconds === 0 && (
+                      <Button
+                        size='sm'
+                        onClick={() => void handleRebuildCart()}
+                        isLoading={retryLoading}
+                      >
+                        {m.order_failed_rebuild_cart()}
+                      </Button>
+                    )}
+                  </div>
+                  {retryError && (
+                    <p className='mt-2 text-sm text-error' role='alert'>
+                      {retryError}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {isCancelled && (
             <div className='mb-6 rounded-lg border border-error/20 bg-error-subtle p-4'>
               <p className='font-medium text-error'>{m.order_detail_cancelled()}</p>
@@ -288,12 +397,22 @@ export default function BuyerOrderDetailPage({
                   {m.order_detail_cancellation_reason({ reason: order.cancellationReason })}
                 </p>
               )}
-              <a
-                href={`mailto:support@eurtisan.eu?subject=Payment issue for order ${order.orderNumber}`}
-                className='mt-3 inline-flex items-center gap-1 text-sm font-medium text-error underline-offset-2 hover:underline'
-              >
-                {m.order_detail_contact_support()}
-              </a>
+              <div className='mt-3 flex flex-wrap items-center gap-3'>
+                <Button size='sm' onClick={() => void handleRebuildCart()} isLoading={retryLoading}>
+                  {m.order_failed_rebuild_cart()}
+                </Button>
+                <a
+                  href={`mailto:support@eurtisan.eu?subject=Payment issue for order ${order.orderNumber}`}
+                  className='inline-flex items-center gap-1 text-sm font-medium text-error underline-offset-2 hover:underline'
+                >
+                  {m.order_detail_contact_support()}
+                </a>
+              </div>
+              {retryError && (
+                <p className='mt-2 text-sm text-error' role='alert'>
+                  {retryError}
+                </p>
+              )}
             </div>
           )}
 

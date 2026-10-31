@@ -244,7 +244,7 @@ describe('cancelAbandonedPendingPaymentOrders', () => {
         productId: p.id,
         platformOrderId: order.id,
         quantity: 1,
-        expiresAt: new Date(Date.now() + 60_000),
+        expiresAt: new Date(Date.now() - 60_000),
       })
     }
 
@@ -277,6 +277,43 @@ describe('cancelAbandonedPendingPaymentOrders', () => {
 
       expect(reservations).toHaveLength(0)
     }
+  })
+  it('does not cancel pending_payment orders if an unexpired reservation still exists', async () => {
+    const { product: p } = await seedUserShopProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '1 Oak' },
+        billingAddress: { street: '1 Oak' },
+        totalCents: 100,
+        status: 'pending_payment',
+        createdAt: new Date(Date.now() - 35 * 60_000),
+      })
+      .returning()
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: 'shop-1',
+      status: 'pending_payment',
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 1,
+      expiresAt: new Date(Date.now() + 10 * 60_000),
+    })
+
+    const result = await cancelAbandonedPendingPaymentOrders(100)
+    expect(result.cancelledCount).toBe(0)
+
+    const [persisted] = await db
+      .select({ status: platformOrder.status })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(persisted.status).toBe('pending_payment')
   })
 
   it('does not cancel recent pending_payment orders', async () => {

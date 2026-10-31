@@ -1,7 +1,17 @@
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, Download, ImageOff, Loader2, MapPin, XCircle } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Download,
+  ImageOff,
+  Loader2,
+  MapPin,
+  XCircle,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
+import { useCountdown, useReservationCountdown } from '#/hooks/useCountdown'
 import { rebuildCartFromOrder } from '#/lib/checkout'
 import type { OrderDetail } from '#/lib/orders.server'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -23,12 +33,19 @@ function getFailureKind(order: OrderDetail): FailureKind {
   if (reason.includes('failed')) return 'failed'
   return 'cancelled'
 }
+function formatRemainingTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${minutes}:${secs.toString().padStart(2, '0')}`
+}
 
 export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccessPageProps) {
   const isPending = order.status === 'pending_payment'
   const isCancelled = order.status === 'cancelled'
   const isPaid = order.status === 'paid'
   const failureKind = getFailureKind(order)
+  const remainingSeconds = useReservationCountdown(order.reservationExpiresAt)
+  const cooldown = useCountdown()
 
   const [retryState, setRetryState] = useState<{
     isLoading: boolean
@@ -37,7 +54,8 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
   }>({ isLoading: false, error: null, reservationExpired: false })
 
   const handleRetryPayment = async () => {
-    if (!onRetryPayment) return
+    if (!onRetryPayment || cooldown.remaining > 0) return
+    cooldown.start(15)
     setRetryState({ isLoading: true, error: null, reservationExpired: false })
     try {
       const result = await onRetryPayment()
@@ -98,7 +116,23 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
             </>
           )}
 
-          {isPending && (
+          {isPending && order.paymentInitiationFailed && (
+            <>
+              <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-warning-subtle text-warning'>
+                <AlertCircle size={32} aria-hidden='true' />
+              </div>
+              <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
+                Payment could not be started
+              </h1>
+              <p className='text-text-secondary'>
+                {remainingSeconds > 0
+                  ? `Your items are held for ${formatRemainingTime(remainingSeconds)}. Please try submitting payment again.`
+                  : 'Your inventory reservation has expired. Please rebuild your cart to continue.'}
+              </p>
+            </>
+          )}
+
+          {isPending && !order.paymentInitiationFailed && (
             <>
               <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-warning-subtle text-warning'>
                 <Loader2 size={32} aria-hidden='true' className='animate-spin' />
@@ -107,6 +141,12 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                 {m.order_pending_title()}
               </h1>
               <p className='text-text-secondary'>{m.order_pending_description()}</p>
+              {remainingSeconds > 0 && (
+                <p className='mt-2 inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-xs font-medium text-text-secondary'>
+                  <Clock size={14} aria-hidden='true' />
+                  Items held for {formatRemainingTime(remainingSeconds)}
+                </p>
+              )}
             </>
           )}
 
@@ -269,11 +309,31 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                     void handleRetryPayment()
                   }}
                   isLoading={retryState.isLoading}
-                  disabled={retryState.isLoading}
+                  disabled={
+                    retryState.isLoading ||
+                    cooldown.remaining > 0 ||
+                    (order.reservationExpiresAt !== undefined &&
+                      order.reservationExpiresAt !== null &&
+                      remainingSeconds === 0)
+                  }
                 >
-                  {m.order_pending_retry_payment()}
+                  {cooldown.remaining > 0
+                    ? `Retry payment (${cooldown.remaining}s)`
+                    : m.order_pending_retry_payment()}
                 </Button>
               )}
+              {isPending &&
+                order.reservationExpiresAt !== undefined &&
+                order.reservationExpiresAt !== null &&
+                remainingSeconds === 0 && (
+                  <Button
+                    size='lg'
+                    onClick={() => void handleRebuildCart()}
+                    isLoading={retryState.isLoading}
+                  >
+                    {m.order_failed_rebuild_cart()}
+                  </Button>
+                )}
 
               {isCancelled && (
                 <>

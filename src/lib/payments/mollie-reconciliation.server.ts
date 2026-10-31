@@ -1,8 +1,9 @@
 import '@tanstack/react-start/server-only'
 
-import { and, eq, isNotNull, lte, sql } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, lte, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import {
+  inventoryReservation,
   orderItem,
   paymentAttempt,
   platformOrder,
@@ -14,6 +15,7 @@ import { molliePaymentProvider } from '#/integrations/mollie'
 import { handleChargeback } from '#/lib/chargebacks.server'
 import { decrementStockForPaidOrder } from '#/lib/inventory.server'
 import { logger } from '#/lib/logger.server'
+import { duplicatePaymentCapturesTotal } from '../infra/metrics.server'
 import {
   mollieOldestPendingPaymentAgeSeconds,
   molliePaymentReconciliationErrorsTotal,
@@ -87,6 +89,7 @@ export async function reconcileMolliePayment(
       id: platformOrder.id,
       status: platformOrder.status,
       totalCents: platformOrder.totalCents,
+      molliePaymentId: platformOrder.molliePaymentId,
     })
     .from(platformOrder)
     .where(eq(platformOrder.molliePaymentId, molliePaymentId))
@@ -132,6 +135,7 @@ export async function reconcileMolliePayment(
         id: platformOrder.id,
         status: platformOrder.status,
         totalCents: platformOrder.totalCents,
+        molliePaymentId: platformOrder.molliePaymentId,
       })
       .from(platformOrder)
       .where(eq(platformOrder.id, attempt.platformOrderId))
@@ -150,9 +154,35 @@ export async function reconcileMolliePayment(
 
   const chargebackEligible = CHARGEBACK_ELIGIBLE_STATUSES.has(order.status)
   const needsAuthoritativeLookup =
-    order.status === 'pending_payment' || order.status === 'cancelled' || chargebackEligible
-
+    order.status === 'pending_payment' ||
+    order.status === 'cancelled' ||
+    order.status === 'paid' ||
+    chargebackEligible
   if (!needsAuthoritativeLookup) {
+    return { status: 'already_processed', platformOrderId: order.id }
+  }
+
+  if (order.status === 'paid') {
+    if (molliePaymentId === order.molliePaymentId) {
+      return { status: 'already_processed', platformOrderId: order.id }
+    }
+
+    const paymentStatus = await provider.getPaymentStatus(molliePaymentId)
+    if (paymentStatus === 'paid') {
+      const paymentAmountCents = await provider.getPaymentAmount(molliePaymentId)
+      await provider.refundPayment(molliePaymentId, paymentAmountCents, {
+        idempotencyKey: `dup-refund-${order.id}-${molliePaymentId}`,
+      })
+      duplicatePaymentCapturesTotal.inc({ provider: 'mollie' })
+      logger.error('Duplicate payment capture automatically refunded', undefined, {
+        alert: true,
+        platformOrderId: order.id,
+        molliePaymentId,
+        primaryPaymentId: order.molliePaymentId,
+      })
+      return { status: 'refunded_after_cancellation', platformOrderId: order.id }
+    }
+
     return { status: 'already_processed', platformOrderId: order.id }
   }
 
@@ -470,6 +500,25 @@ async function cancelPendingOrder(
           ? 'Payment failed'
           : 'Payment cancelled by buyer'
     const now = new Date()
+    const [activeReservation] = await tx
+      .select({ expiresAt: inventoryReservation.expiresAt })
+      .from(inventoryReservation)
+      .where(
+        and(
+          eq(inventoryReservation.platformOrderId, platformOrderId),
+          gt(inventoryReservation.expiresAt, now),
+        ),
+      )
+      .limit(1)
+
+    if (activeReservation) {
+      await tx
+        .update(platformOrder)
+        .set({ updatedAt: now })
+        .where(eq(platformOrder.id, platformOrderId))
+
+      return 'already_processed'
+    }
 
     await tx
       .update(platformOrder)

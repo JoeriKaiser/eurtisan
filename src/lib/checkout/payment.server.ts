@@ -2,8 +2,9 @@ import { and, desc, eq, gt } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { inventoryReservation, paymentAttempt, platformOrder } from '#/db/schema'
 import { SUPPORTED_CURRENCY } from '../currency'
-import { decryptJsonb, encrypt } from '../encryption.server'
+import { decrypt, decryptJsonb, encrypt } from '../encryption.server'
 import { getBaseUrl } from '../env.server'
+import { paymentInitiationRetriesTotal } from '../infra/metrics.server'
 import { logger } from '../logger.server'
 import type { PaymentProvider } from '../payment-provider'
 import type { RetryPaymentResult } from './types'
@@ -102,6 +103,19 @@ async function createAndPersistPayment(
       )
       .orderBy(desc(paymentAttempt.createdAt))
       .limit(1)
+
+    if (completedAttempt?.providerPaymentId && completedAttempt.checkoutUrl) {
+      let status: string | null = null
+      try {
+        status = await paymentProvider.getPaymentStatus(completedAttempt.providerPaymentId)
+      } catch {
+        status = null
+      }
+
+      if (status === 'open' || status === 'pending') {
+        return decrypt(completedAttempt.checkoutUrl)
+      }
+    }
 
     const previousId = completedAttempt?.providerPaymentId ?? order?.molliePaymentId ?? null
     if (previousId) {
@@ -243,6 +257,7 @@ export async function retryPayment(
       buyerCountry,
       paymentProvider,
     )
+    paymentInitiationRetriesTotal.inc({ status: 'success' })
     return { checkoutUrl }
   } catch (error) {
     if (error instanceof PaymentAlreadyCapturedError) {
@@ -265,6 +280,11 @@ export async function retryPayment(
         { status: 409, headers: { 'Content-Type': 'application/json' } },
       )
     }
+    logger.error('Payment retry initiation failed in retryPayment', error, {
+      alert: true,
+      platformOrderId,
+    })
+    paymentInitiationRetriesTotal.inc({ status: 'failure' })
     throw new Response(
       JSON.stringify({
         error: 'Service Unavailable',

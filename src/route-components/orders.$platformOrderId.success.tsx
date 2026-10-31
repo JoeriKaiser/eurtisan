@@ -6,7 +6,7 @@ import { retryPayment } from '#/lib/checkout'
 import { getBuyerOrderDetail } from '#/lib/orders'
 
 const POLL_INTERVAL_MS = 3_000
-const POLL_TIMEOUT_MS = 5 * 60 * 1_000 // 5 minutes
+const POLL_TIMEOUT_MS = 15 * 60 * 1_000 // 15 minutes
 
 export function OrderSuccessRouteComponent() {
   const { order: initialOrder } = useLoaderData({ from: '/orders/$platformOrderId/success' })
