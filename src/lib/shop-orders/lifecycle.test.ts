@@ -22,9 +22,9 @@ const EXPECTED_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   processing: ['shipped', 'disputed', 'refunded'],
   shipped: ['delivered', 'disputed', 'refunded'],
   delivered: ['completed', 'disputed', 'refunded'],
-  completed: ['refunded'],
+  completed: ['refunded', 'disputed'],
   cancelled: [],
-  refunded: [],
+  refunded: ['disputed'],
   disputed: ['refunded', 'completed'],
   manual_review: ['paid', 'cancelled', 'refunded'],
   chargeback: [],
@@ -42,9 +42,14 @@ describe('shop-order lifecycle rules', () => {
   })
 
   it('keeps terminal states terminal', () => {
-    for (const status of ['cancelled', 'refunded', 'chargeback'] as const) {
+    for (const status of ['cancelled', 'chargeback'] as const) {
       expect(ALL_STATUSES.some((next) => isValidStatusTransition(status, next))).toBe(false)
     }
+  })
+
+  it('allows transitions from completed and refunded to disputed', () => {
+    expect(isValidStatusTransition('completed', 'disputed')).toBe(true)
+    expect(isValidStatusTransition('refunded', 'disputed')).toBe(true)
   })
 
   it('prioritizes review and risk states over fulfillment progress', () => {

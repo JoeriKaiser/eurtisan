@@ -247,9 +247,16 @@ export function ShopOrderDetailPage() {
                           ? m.return_type_withdrawal()
                           : m.return_type_defective()}
                       </p>
-                      <p className='text-sm text-text-muted'>
-                        {m.return_status({ status: request.status.replaceAll('_', ' ') })}
-                      </p>
+                      <div className='mt-1'>
+                        <Badge
+                          variant={request.status === 'disputed' ? 'warning' : 'default'}
+                          role='status'
+                        >
+                          {request.status === 'disputed'
+                            ? m.return_status_disputed()
+                            : m.return_status({ status: request.status.replaceAll('_', ' ') })}
+                        </Badge>
+                      </div>
                     </div>
                     <Link
                       to='/returns/$returnRequestId'

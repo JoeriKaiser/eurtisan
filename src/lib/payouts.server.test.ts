@@ -16,6 +16,7 @@ import {
   listCreatorPayoutsQuery,
   markPayoutSentQuery,
   PayoutError,
+  reversePayoutForRefund,
 } from './payouts.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { markShopOrderDeliveredQuery, updateShopOrderStatusQuery } from './shop-orders.server'
@@ -617,6 +618,9 @@ describe('isValidPayoutTransition', () => {
   it('allows pending -> in_transit', () => {
     expect(isValidPayoutTransition('pending', 'in_transit')).toBe(true)
   })
+  it('allows pending -> reversed', () => {
+    expect(isValidPayoutTransition('pending', 'reversed')).toBe(true)
+  })
 
   it('allows in_transit -> sent', () => {
     expect(isValidPayoutTransition('in_transit', 'sent')).toBe(true)
@@ -640,5 +644,105 @@ describe('PayoutError', () => {
     const err = new PayoutError('INVALID_STATUS_TRANSITION', 'bad transition')
     expect(err.code).toBe('INVALID_STATUS_TRANSITION')
     expect(err.message).toBe('bad transition')
+  })
+})
+
+describe('reversePayoutForRefund', () => {
+  it('decrements pending payout by net artisan proceeds and keeps status pending for partial refund', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const subtotalCents = 10000
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [initialPayout] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(initialPayout).toBeDefined()
+    expect(initialPayout.status).toBe('pending')
+
+    const refundCents = 3000
+    const netArtisanDeduction = Math.round(refundCents * (1 - PLATFORM_FEE_PERCENT / 100))
+    const expectedRemaining = initialPayout.amountCents - netArtisanDeduction
+
+    const result = await db.transaction(async (tx) => {
+      return reversePayoutForRefund(tx, order.id, refundCents, 'partial_return_item')
+    })
+
+    expect(result).toEqual({})
+
+    const [updatedPayout] = await db.select().from(payout).where(eq(payout.id, initialPayout.id))
+    expect(updatedPayout).toBeDefined()
+    expect(updatedPayout.status).toBe('pending')
+    expect(updatedPayout.amountCents).toBe(expectedRemaining)
+    expect(updatedPayout.reversalReason).toBe('partial_refund:partial_return_item')
+    expect(updatedPayout.reversedAt).toBeNull()
+  })
+
+  it('sets status to reversed, amountCents to 0, and reversedAt for full refund against pending payout', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const subtotalCents = 10000
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [initialPayout] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(initialPayout).toBeDefined()
+    expect(initialPayout.status).toBe('pending')
+
+    const refundCents = subtotalCents
+    const result = await db.transaction(async (tx) => {
+      return reversePayoutForRefund(tx, order.id, refundCents, 'full_order_return')
+    })
+
+    expect(result).toEqual({})
+
+    const [updatedPayout] = await db.select().from(payout).where(eq(payout.id, initialPayout.id))
+    expect(updatedPayout).toBeDefined()
+    expect(updatedPayout.status).toBe('reversed')
+    expect(updatedPayout.amountCents).toBe(0)
+    expect(updatedPayout.reversalReason).toBe('full_order_return')
+    expect(updatedPayout.reversedAt).toBeInstanceOf(Date)
+  })
+
+  it('sets status to reversed when net deduction exceeds remaining pending payout', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const subtotalCents = 5000
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [initialPayout] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(initialPayout).toBeDefined()
+
+    const refundCents = 10000
+    const result = await db.transaction(async (tx) => {
+      return reversePayoutForRefund(tx, order.id, refundCents, 'excess_refund')
+    })
+
+    expect(result).toEqual({})
+
+    const [updatedPayout] = await db.select().from(payout).where(eq(payout.id, initialPayout.id))
+    expect(updatedPayout).toBeDefined()
+    expect(updatedPayout.status).toBe('reversed')
+    expect(updatedPayout.amountCents).toBe(0)
+    expect(updatedPayout.reversalReason).toBe('excess_refund')
+    expect(updatedPayout.reversedAt).toBeInstanceOf(Date)
   })
 })

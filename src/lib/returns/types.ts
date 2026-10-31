@@ -9,8 +9,15 @@ export type ReturnRequestStatus =
   | 'refund_pending'
   | 'refunded'
   | 'rejected'
+  | 'disputed'
   | 'closed'
 
+export type DiminishedValueCategory =
+  | 'worn_washed'
+  | 'scratched_damaged'
+  | 'missing_packaging'
+  | 'broken_seal'
+  | 'structural_damage'
 export interface ReturnRequestSummary {
   id: string
   shopOrderId: string
@@ -23,6 +30,11 @@ export interface ReturnRequestSummary {
   returnDeadline: Date
   refundCents: number
   outboundShippingRefundCents: number
+  diminishedValueCents: number
+  netRefundCents: number
+  diminishedValueReason: string | null
+  diminishedValueCategory: DiminishedValueCategory | string | null
+  diminishedValueEvidenceUrls: string[]
   carrier: string | null
   trackingNumber: string | null
   labelUrl: string | null
@@ -35,5 +47,6 @@ export interface ReturnRequestSummary {
     productName: string
     quantity: number
     refundCents: number
+    restockItem: boolean
   }>
 }

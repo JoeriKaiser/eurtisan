@@ -104,6 +104,31 @@ export async function reversePayoutForRefund(
     return {}
   }
 
+  if (payoutRecord.status === 'pending') {
+    const netArtisanDeduction = Math.round(refundCents * (1 - PLATFORM_FEE_PERCENT / 100))
+    const deduction = Math.min(payoutRecord.amountCents, netArtisanDeduction)
+    if (deduction >= payoutRecord.amountCents) {
+      await tx
+        .update(payout)
+        .set({
+          status: 'reversed',
+          reversalReason: reason,
+          amountCents: 0,
+          reversedAt: new Date(),
+        })
+        .where(eq(payout.id, payoutRecord.id))
+    } else {
+      await tx
+        .update(payout)
+        .set({
+          amountCents: payoutRecord.amountCents - deduction,
+          reversalReason: `partial_refund:${reason}`,
+        })
+        .where(eq(payout.id, payoutRecord.id))
+    }
+    return {}
+  }
+
   if (!['sent', 'in_transit'].includes(payoutRecord.status)) {
     return {}
   }
