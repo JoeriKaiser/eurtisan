@@ -2621,5 +2621,8 @@
   "home_charter_item_3_title": "Zaščita po zakonodaji EU",
   "home_charter_item_3_desc": "Evropske potrošniške pravice, pregledne cene in varna plačila prek Mollie.",
   "home_charter_item_4_title": "Zasebnost po načelih GDPR",
-  "home_charter_item_4_desc": "Zbiramo samo podatke, potrebne za dostavo naročila. Brez oglasnega sledenja tretjih oseb."
+  "home_charter_item_4_desc": "Zbiramo samo podatke, potrebne za dostavo naročila. Brez oglasnega sledenja tretjih oseb.",
+  "product_share": "Deli oglas",
+  "product_share_copied": "Povezava kopirana",
+  "product_dispatch_calendar_estimate": "Predvidena odprema: {window}"
 }

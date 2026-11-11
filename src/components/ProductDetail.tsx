@@ -1,11 +1,13 @@
 import { Link } from '@tanstack/react-router'
 import {
+  Check,
   ImageOff,
   Loader2,
   Minus,
   PackageCheck,
   PackageX,
   Plus,
+  Share2,
   ShoppingCart,
   Store,
   Truck,
@@ -22,6 +24,7 @@ import { useAddToCart } from '#/lib/cart-hooks'
 import { reportProduct } from '#/lib/products'
 import { formatPriceEUR } from '#/lib/pricing'
 import { resolveAvailability } from '#/lib/products/availability'
+import { formatDispatchDateWindow } from '#/lib/products/dispatch-estimate'
 import type { ProductDetail as ProductDetailType, PublicProduct } from '#/lib/products.server'
 import {
   getProductImageTransitionName,
@@ -52,9 +55,45 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
   const [isReported, setIsReported] = useState(false)
   const [reportBusy, setReportBusy] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const { cart } = useCart()
   const addToCartMutation = useAddToCart()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shareTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleShare = async () => {
+    if (typeof window === 'undefined') return
+    const shareData = {
+      title: product.name,
+      text: product.description || product.name,
+      url: window.location.href,
+    }
+
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare(shareData)
+    ) {
+      try {
+        await navigator.share(shareData)
+        return
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setCopied(true)
+        if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current)
+        shareTimeoutRef.current = setTimeout(() => setCopied(false), 2500)
+      } catch {
+        // Clipboard write failed
+      }
+    }
+  }
 
   const handleReportProduct = async (reason: ProductReportReason, details: string | null) => {
     setReportBusy(true)
@@ -201,12 +240,32 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
         {/* Right column: product info */}
         <div className='space-y-6'>
           <section className='island-shell rounded-2xl p-6 sm:p-8'>
-            <p className='island-kicker mb-2'>
-              {product.categoryName ?? m.product_uncategorized()}
-            </p>
-            <h1 className='display-title mb-3 text-3xl font-semibold text-text-primary sm:text-4xl'>
-              {product.name}
-            </h1>
+            <div className='mb-3 flex items-start justify-between gap-4'>
+              <div>
+                <p className='island-kicker mb-2'>
+                  {product.categoryName ?? m.product_uncategorized()}
+                </p>
+                <h1 className='display-title text-3xl font-semibold text-text-primary sm:text-4xl'>
+                  {product.name}
+                </h1>
+              </div>
+              <button
+                type='button'
+                onClick={handleShare}
+                aria-label={copied ? m.product_share_copied() : m.product_share()}
+                title={copied ? m.product_share_copied() : m.product_share()}
+                className='flex size-10 flex-shrink-0 items-center justify-center rounded-full border border-border-default bg-surface-default text-text-secondary transition hover:border-border-strong hover:bg-surface-inset hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary'
+              >
+                {copied ? (
+                  <Check size={18} className='text-success' aria-hidden='true' />
+                ) : (
+                  <Share2 size={18} aria-hidden='true' />
+                )}
+                <span className='sr-only' role='status'>
+                  {copied ? m.product_share_copied() : ''}
+                </span>
+              </button>
+            </div>
 
             <p className='mb-1 text-2xl font-bold text-text-primary'>
               {formatPriceEUR(product.priceCents)}
@@ -265,12 +324,23 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 date that changes at checkout costs more trust than it wins. */}
             <div className='mb-4 space-y-1 text-sm text-text-secondary'>
               {product.dispatchDays && (
-                <p className='m-0 inline-flex items-center gap-1.5'>
+                <p className='m-0 inline-flex flex-wrap items-center gap-1.5'>
                   <Truck size={14} aria-hidden='true' />
-                  {m.product_dispatch_window({
-                    min: product.dispatchDays.min,
-                    max: product.dispatchDays.max,
-                  })}
+                  <span>
+                    {m.product_dispatch_window({
+                      min: product.dispatchDays.min,
+                      max: product.dispatchDays.max,
+                    })}
+                  </span>
+                  <span className='text-xs text-text-muted font-normal'>
+                    ·{' '}
+                    {m.product_dispatch_calendar_estimate({
+                      window: formatDispatchDateWindow(
+                        product.dispatchDays.min,
+                        product.dispatchDays.max,
+                      ),
+                    })}
+                  </span>
                 </p>
               )}
               <p className='m-0 text-xs text-text-muted'>{m.product_delivery_at_checkout()}</p>

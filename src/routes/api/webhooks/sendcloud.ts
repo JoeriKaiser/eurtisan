@@ -10,7 +10,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { eq, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { sendcloudWebhookEvent, shippingLabel, shopOrder } from '#/db/schema'
-import { SendcloudProvider } from '#/integrations/shipping/sendcloud-provider'
+import { sendcloudProvider } from '#/integrations/shipping/sendcloud-provider'
 import { getSendcloudWebhookSecret } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 import { sendcloudWebhookFailedTotal } from '#/lib/metrics.server'
@@ -88,7 +88,10 @@ export async function processSendcloudWebhook(
     return jsonResponse(500, 'Internal Server Error', 'Webhook secret not configured')
   }
 
-  const verify = options?.verifySignature ?? new SendcloudProvider().verifyWebhookSignature
+  const verify =
+    options?.verifySignature ??
+    ((payload: string, signature: string, secret: string) =>
+      sendcloudProvider.verifyWebhookSignature(payload, signature, secret))
   let isValid: boolean
   try {
     isValid = await verify(rawBody, signature, secret)

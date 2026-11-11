@@ -2621,5 +2621,8 @@
   "home_charter_item_3_title": "Apsauga pagal ES teisę",
   "home_charter_item_3_desc": "Europos vartotojų teisės, skaidrios kainos ir saugūs mokėjimai per Mollie.",
   "home_charter_item_4_title": "BDAR atitinkantis privatumas",
-  "home_charter_item_4_desc": "Renkame tik užsakymo pristatymui būtinus duomenis. Jokio trečiųjų šalių reklaminio sekimo."
+  "home_charter_item_4_desc": "Renkame tik užsakymo pristatymui būtinus duomenis. Jokio trečiųjų šalių reklaminio sekimo.",
+  "product_share": "Dalintis skelbimu",
+  "product_share_copied": "Nuoroda nukopijuota",
+  "product_dispatch_calendar_estimate": "Numatomas išsiuntimas: {window}"
 }

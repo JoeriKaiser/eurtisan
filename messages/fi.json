@@ -2607,5 +2607,8 @@
   "home_charter_item_3_title": "EU-lainsäädännön suojaama",
   "home_charter_item_3_desc": "Eurooppalaiset kuluttajanoikeudet, selkeä hinnoittelu ja turvalliset Mollie-maksut.",
   "home_charter_item_4_title": "GDPR-tietosuoja etusijalla",
-  "home_charter_item_4_desc": "Keräämme vain tilauksen toimittamiseen tarvittavat tiedot. Ei kolmansien osapuolten mainosseurantaa."
+  "home_charter_item_4_desc": "Keräämme vain tilauksen toimittamiseen tarvittavat tiedot. Ei kolmansien osapuolten mainosseurantaa.",
+  "product_share": "Jaa ilmoitus",
+  "product_share_copied": "Linkki kopioitu",
+  "product_dispatch_calendar_estimate": "Arvioitu lähetys: {window}"
 }

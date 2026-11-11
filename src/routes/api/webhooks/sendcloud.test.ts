@@ -233,4 +233,44 @@ describe('POST /api/webhooks/sendcloud (processSendcloudWebhook)', () => {
     expect(event?.error).toBe('unknown_tracking_number')
     expect(event?.processedAt).not.toBeNull()
   })
+
+  it('uses default SendcloudProvider verifier to validate real HMAC signatures', async () => {
+    const secret = 'real-hmac-secret-123'
+    const payload = JSON.stringify({
+      action: 'parcel_status_changed',
+      parcel: { id: 10001, tracking_number: 'SC88888888', status: { message: 'In transit' } },
+    })
+
+    const encoder = new TextEncoder()
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    )
+    const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(payload))
+    const validSignature = Array.from(new Uint8Array(sigBuf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    const req = new Request('http://localhost:3000/api/webhooks/sendcloud', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Sendcloud-Signature': validSignature,
+      },
+      body: payload,
+    })
+
+    // Notice: options.verifySignature is omitted so the production provider default is exercised!
+    const res = await processSendcloudWebhook(req, {
+      db,
+      secret,
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('unknown_tracking')
+  })
 })

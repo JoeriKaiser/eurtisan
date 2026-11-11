@@ -63,6 +63,8 @@ vi.mock('#/paraglide/messages', () => ({
     product_sold_by: () => 'Sold by',
     product_unknown_shop: () => 'Unknown shop',
     product_visit_shop: () => 'Visit shop',
+    product_share: () => 'Share listing',
+    product_share_copied: () => 'Link copied',
     reviews_report_button: () => 'Report review',
     cart_add_success: () => 'Added to cart',
     cart_add_stock_limit: () => 'Updated to available stock limit',
@@ -74,6 +76,8 @@ vi.mock('#/paraglide/messages', () => ({
     product_stock_low: ({ count }: { count: number }) => `Only ${count} left`,
     product_dispatch_window: ({ min, max }: { min: number; max: number }) =>
       `Usually dispatched in ${min}\u2013${max} business days`,
+    product_dispatch_calendar_estimate: ({ window }: { window: string }) =>
+      `Estimated dispatch: ${window}`,
     product_delivery_at_checkout: () => 'Delivery cost and time are calculated at checkout.',
     product_rating_summary: ({ average, count }: { average: string; count: number }) =>
       `${average} out of 5 \u00b7 ${count} reviews`,
@@ -447,5 +451,37 @@ describe('ProductDetail', () => {
     await act(async () => {
       resolve({ id: 'item-1', productId: 'prod-1', quantity: 1 })
     })
+  })
+
+  it('renders share button and copies listing url to clipboard', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    })
+
+    render(<ProductDetail product={makeProduct()} />)
+    const shareButton = screen.getByRole('button', { name: 'Share listing' })
+    expect(shareButton).toBeDefined()
+
+    fireEvent.click(shareButton)
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith(window.location.href)
+      expect(screen.getByRole('button', { name: 'Link copied' })).toBeDefined()
+    })
+  })
+
+  it('renders estimated calendar dispatch window when dispatch days are set', () => {
+    render(
+      <ProductDetail
+        product={makeProduct({
+          dispatchDays: { min: 2, max: 5 },
+        })}
+      />,
+    )
+    expect(screen.getByText(/Usually dispatched in 2–5 business days/)).toBeDefined()
+    expect(screen.getByText(/Estimated dispatch:/)).toBeDefined()
   })
 })

@@ -19,7 +19,10 @@ import { createPageMeta, createUtilityMeta, createPrivateLayoutMeta, createRootM
 type PageMeta = ReturnType<typeof createPageMeta>
 
 function alternateHref(result: PageMeta, hreflang: string): string | undefined {
-  return result.links.find((link) => link.rel === 'alternate' && link.hreflang === hreflang)?.href
+  return result.links.find(
+    (link) =>
+      link.rel === 'alternate' && (link.hrefLang === hreflang || link.hreflang === hreflang),
+  )?.href
 }
 
 const configuredPublicUrl = process.env.PUBLIC_URL
@@ -290,7 +293,7 @@ describe('createPageMeta', () => {
     expect(alternateHref(result, 'x-default')).toBe('/about')
 
     // Canonical first, then alternates in a stable order.
-    expect(result.links.map((link) => link.hreflang ?? link.rel)).toEqual([
+    expect(result.links.map((link) => link.hrefLang ?? link.hreflang ?? link.rel)).toEqual([
       'canonical',
       ...EU_LOCALES,
       'x-default',

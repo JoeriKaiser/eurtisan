@@ -2621,5 +2621,8 @@
   "home_charter_item_3_title": "Ochrona prawem UE",
   "home_charter_item_3_desc": "Europejskie prawa konsumenta, przejrzyste ceny i bezpieczne płatności przez Mollie.",
   "home_charter_item_4_title": "Prywatność zgodna z RODO",
-  "home_charter_item_4_desc": "Zbieramy tylko dane niezbędne do realizacji zamówienia. Brak śledzenia reklamowego firm trzecich."
+  "home_charter_item_4_desc": "Zbieramy tylko dane niezbędne do realizacji zamówienia. Brak śledzenia reklamowego firm trzecich.",
+  "product_share": "Udostępnij ofertę",
+  "product_share_copied": "Link skopiowany",
+  "product_dispatch_calendar_estimate": "Przewidywana wysyłka: {window}"
 }

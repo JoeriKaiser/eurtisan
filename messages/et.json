@@ -2607,5 +2607,8 @@
   "home_charter_item_3_title": "Kaitstud EL-i seadustega",
   "home_charter_item_3_desc": "Euroopa tarbijaõigused, läbipaistev hinnakujundus ja turvalised maksed Mollie kaudu.",
   "home_charter_item_4_title": "GDPR-i nõuetele vastav privaatsus",
-  "home_charter_item_4_desc": "Kogume ainult tellimuse täitmiseks vajalikke andmeid. Puudub kolmandate osapoolte reklaamjälgimine."
+  "home_charter_item_4_desc": "Kogume ainult tellimuse täitmiseks vajalikke andmeid. Puudub kolmandate osapoolte reklaamjälgimine.",
+  "product_share": "Jaga kuulutust",
+  "product_share_copied": "Link kopeeritud",
+  "product_dispatch_calendar_estimate": "Eeldatav saatmine: {window}"
 }

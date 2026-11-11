@@ -2608,5 +2608,8 @@
   "home_charter_item_3_title": "Beschermd onder EU-recht",
   "home_charter_item_3_desc": "Europese consumentenrechten, transparante prijzen en veilige betalingen via Mollie.",
   "home_charter_item_4_title": "Privacy volgens AVG",
-  "home_charter_item_4_desc": "We verzamelen enkel wat nodig is voor uw bestelling. Geen advertentietrackers van derden."
+  "home_charter_item_4_desc": "We verzamelen enkel wat nodig is voor uw bestelling. Geen advertentietrackers van derden.",
+  "product_share": "Deel advertentie",
+  "product_share_copied": "Link gekopieerd",
+  "product_dispatch_calendar_estimate": "Verwachte verzending: {window}"
 }

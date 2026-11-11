@@ -28,6 +28,20 @@ export function getBaseUrl(): string {
 }
 
 /**
+ * Webhook base URL for external provider callbacks (e.g. Mollie, Sendcloud).
+ * Uses WEBHOOK_BASE_URL env var when set, otherwise falls back to getBaseUrl().
+ */
+export function getWebhookBaseUrl(): string {
+  if (typeof process !== 'undefined') {
+    const webhookBaseUrl = process.env.WEBHOOK_BASE_URL
+    if (webhookBaseUrl) {
+      return webhookBaseUrl.replace(/\/+$/, '')
+    }
+  }
+  return getBaseUrl()
+}
+
+/**
  * Mollie API key (server-only).
  * Required in production for live Mollie integration.
  * When absent and MOCK_PAYMENTS_ENABLED is not set to 'true', the constructor

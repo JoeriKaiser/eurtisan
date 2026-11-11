@@ -2607,5 +2607,8 @@
   "home_charter_item_3_title": "Geschützt durch EU-Recht",
   "home_charter_item_3_desc": "Europäischer Verbraucherschutz, transparente Preise und sichere Zahlung über Mollie.",
   "home_charter_item_4_title": "DSGVO-konformer Datenschutz",
-  "home_charter_item_4_desc": "Wir erfassen nur Daten, die für Ihre Bestellung nötig sind. Kein Werbetracking von Drittanbietern."
+  "home_charter_item_4_desc": "Wir erfassen nur Daten, die für Ihre Bestellung nötig sind. Kein Werbetracking von Drittanbietern.",
+  "product_share": "Angebot teilen",
+  "product_share_copied": "Link kopiert",
+  "product_dispatch_calendar_estimate": "Voraussichtlicher Versand: {window}"
 }

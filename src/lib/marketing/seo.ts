@@ -116,7 +116,7 @@ export function createPageMeta(input: CreatePageMetaInput): PageMetaWithLinksRes
     if (locale === currentLocale) {
       fullCanonical = href
     }
-    alternateLinks.push({ rel: 'alternate', hreflang: locale, href })
+    alternateLinks.push({ rel: 'alternate', hrefLang: locale, href })
   }
 
   const meta: Array<Record<string, string>> = [
@@ -149,7 +149,7 @@ export function createPageMeta(input: CreatePageMetaInput): PageMetaWithLinksRes
   const links: Array<Record<string, string>> = [
     { rel: 'canonical', href: fullCanonical },
     ...alternateLinks,
-    { rel: 'alternate', hreflang: 'x-default', href: englishHref },
+    { rel: 'alternate', hrefLang: 'x-default', href: englishHref },
   ]
 
   const result: PageMetaWithLinksResult = { meta, links }

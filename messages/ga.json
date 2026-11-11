@@ -2628,5 +2628,8 @@
   "home_charter_item_3_title": "Cosanta faoi dhlí an AE",
   "home_charter_item_3_desc": "Cearta tomhaltóirí Eorpacha, praghsáil thrédhearcach agus íocaíochtaí slána trí Mollie.",
   "home_charter_item_4_title": "Príobháideachas GDPR ar dtús",
-  "home_charter_item_4_desc": "Ní bhailímid ach an méid a theastaíonn chun d'ordú a sheachadadh. Gan rianú fógraíochta tríú páirtí."
+  "home_charter_item_4_desc": "Ní bhailímid ach an méid a theastaíonn chun d'ordú a sheachadadh. Gan rianú fógraíochta tríú páirtí.",
+  "product_share": "Roinn liostú",
+  "product_share_copied": "Nasc cóipeáilte",
+  "product_dispatch_calendar_estimate": "Seoladh measta: {window}"
 }

@@ -1,4 +1,4 @@
-.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify bundle-check test test-related test-accessibility e2e e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed db-staging-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
+.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify bundle-check test test-related test-accessibility e2e e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status webhook-mollie webhook-sendcloud webhook-brevo sandbox-tunnel shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed db-staging-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
 
 # Docker Compose lifecycle
 up:
@@ -303,6 +303,19 @@ email-links: ensure-up
 # Check local Meilisearch indexing stats
 meili-status: ensure-up
 	docker compose exec -T app bun -e "fetch('http://meilisearch:7700/stats', { headers: { Authorization: 'Bearer meilisearch-api-key' } }).then(r => r.json()).then(console.log)"
+
+# Webhook triggers for local development and testing
+webhook-mollie: ensure-up
+	docker compose exec -T app bun run scripts/trigger-webhook.ts mollie $(if $(ARGS),$(ARGS),$(filter-out webhook-mollie,$(MAKECMDGOALS)))
+
+webhook-sendcloud: ensure-up
+	docker compose exec -T app bun run scripts/trigger-webhook.ts sendcloud $(if $(ARGS),$(ARGS),$(filter-out webhook-sendcloud,$(MAKECMDGOALS)))
+
+webhook-brevo: ensure-up
+	docker compose exec -T app bun run scripts/trigger-webhook.ts brevo $(if $(ARGS),$(ARGS),$(filter-out webhook-brevo,$(MAKECMDGOALS)))
+
+sandbox-tunnel: ensure-up
+	docker compose --profile sandbox up cloudflared
 
 
 # Auth
