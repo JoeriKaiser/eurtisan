@@ -13,7 +13,7 @@
  */
 
 import { randomBytes, scryptSync } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { eq, like } from 'drizzle-orm'
 import { pool } from '../db.ts'
 import { db } from './index.ts'
 import {
@@ -84,8 +84,8 @@ function productImageUrl(seed: string, width = 800, height = 600): string {
   return `https://picsum.photos/seed/${seed}/${width}/${height}`
 }
 
-function avatarUrl(email: string): string {
-  return `https://i.pravatar.cc/150?u=${encodeURIComponent(email)}`
+function avatarUrl(_email: string): string | null {
+  return null
 }
 
 function shopImageUrl(seed: string): string {
@@ -212,7 +212,7 @@ const KNOWN_USERS = [
     name: 'Customer User',
     email: 'customer@eurtisan.local',
     role: 'customer' as const,
-    hasPassword: false,
+    hasPassword: true,
   },
   {
     name: 'Moderator User',
@@ -269,6 +269,9 @@ async function seedUsers(): Promise<(typeof schema.user.$inferSelect)[]> {
     await db.insert(schema.account).values(accounts).onConflictDoNothing()
     console.log(`  → ${accounts.length} new credential accounts`)
   }
+
+  // Clean up legacy external avatar URLs that violate CSP
+  await db.update(schema.user).set({ image: null }).where(like(schema.user.image, '%pravatar.cc%'))
 
   // Return full user set (existing + new) for downstream references
   return db.select().from(schema.user)
@@ -587,8 +590,14 @@ async function seedShops(
 ): Promise<(typeof schema.shop.$inferSelect)[]> {
   console.log('Seeding staging shops…')
 
-  const existing = await db.select({ slug: schema.shop.slug }).from(schema.shop)
-  const existingSlugs = new Set(existing.map((r) => r.slug))
+  const existing = await db
+    .select({
+      id: schema.shop.id,
+      slug: schema.shop.slug,
+      traderStatus: schema.shop.traderStatus,
+    })
+    .from(schema.shop)
+  const existingBySlug = new Map(existing.map((r) => [r.slug, r]))
 
   const userByEmail = new Map(users.map((u) => [u.email, u]))
 
@@ -604,8 +613,17 @@ async function seedShops(
       console.log(`  ⚠ Skipping shop "${def.name}": owner ${def.ownerEmail} not found`)
       continue
     }
-    // Skip if shop slug already exists (idempotent re-run guard)
-    if (existingSlugs.has(def.slug)) {
+    const existingShop = existingBySlug.get(def.slug)
+    if (existingShop) {
+      if (existingShop.traderStatus === null && def.traderStatus) {
+        console.log(
+          `  → Backfilling traderStatus="${def.traderStatus}" for existing shop "${def.name}"`,
+        )
+        await db
+          .update(schema.shop)
+          .set({ traderStatus: def.traderStatus })
+          .where(eq(schema.shop.id, existingShop.id))
+      }
       skippedShops++
       continue
     }

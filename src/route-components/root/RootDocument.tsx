@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, useLocation } from '@tanstack/react-router'
 import { getLocale } from '#/paraglide/runtime'
 import { UmamiScript } from '#/integrations/umami'
+import { THEME_INIT_SCRIPT } from '#/lib/security/theme-script'
 import { markDocumentHydrated } from './hydration-readiness'
 
 export function RootDocument({ children }: { children: React.ReactNode }) {
@@ -11,7 +12,7 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang={getLocale()} suppressHydrationWarning>
       <head>
         {/* Theme: see docs/THEME_HYDRATION.md: client-only class on <html> */}
-        <script>{`(function(){try{var s=window.localStorage.getItem('theme'),d=window.matchMedia('(prefers-color-scheme: dark)').matches,m=s==='light'||s==='dark'?s:d?'dark':'light',r=document.documentElement;r.classList.remove('light','dark');r.classList.add(m);r.setAttribute('data-theme',m);}catch(_e){}})();`}</script>
+        <script>{THEME_INIT_SCRIPT}</script>
         <script defer src={`/i18n/${getLocale()}.js`} />
         <HeadContent />
         {import.meta.env.DEV ? (

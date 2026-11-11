@@ -17,6 +17,7 @@ import { authClient } from '#/lib/auth-client'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
 import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
 import { getCartDistinctItemCount, isCartEmpty } from '#/lib/cart-ui'
+import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
@@ -371,7 +372,7 @@ function CartItemRow({
       <div className='flex size-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-inset sm:h-24 sm:w-24'>
         {product?.imageUrl ? (
           <img
-            src={product.imageUrl}
+            src={getImageUrl(product.imageUrl, { width: 192, format: 'webp' })}
             alt={product.name}
             className={`h-full w-full object-cover ${item.unavailable ? 'opacity-50 grayscale' : ''}`}
             loading='lazy'
@@ -424,7 +425,7 @@ function CartItemRow({
             type='button'
             onClick={() => onRequestRemove(item)}
             disabled={isRemoving}
-            className='flex-shrink-0 rounded-lg p-1.5 text-text-muted transition-colors hover:bg-error-subtle hover:text-error disabled:opacity-50'
+            className='flex size-11 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-error-subtle hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary disabled:opacity-50'
             aria-label={m.cart_item_remove()}
           >
             {isRemoving ? (
@@ -460,7 +461,7 @@ function CartItemRow({
                 <button
                   type='button'
                   aria-label={m.product_decrease_quantity()}
-                  className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                  className='flex size-11 items-center justify-center rounded-l-lg text-text-primary transition hover:bg-bg-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset disabled:opacity-40'
                   disabled={isUpdating || item.quantity <= 1}
                   onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
                 >
@@ -476,7 +477,7 @@ function CartItemRow({
                 <button
                   type='button'
                   aria-label={m.product_increase_quantity()}
-                  className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                  className='flex size-11 items-center justify-center rounded-r-lg text-text-primary transition hover:bg-bg-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset disabled:opacity-40'
                   disabled={isUpdating || item.quantity >= product.stockCount}
                   onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
                 >

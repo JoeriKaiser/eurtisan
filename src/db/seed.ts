@@ -184,8 +184,8 @@ function productImageUrl(seed: string, width = 800, height = 600): string {
   return `https://picsum.photos/seed/${seed}/${width}/${height}`
 }
 
-function avatarUrl(email: string): string {
-  return `https://i.pravatar.cc/150?u=${encodeURIComponent(email)}`
+function avatarUrl(_email: string): string | null {
+  return null
 }
 
 function shopImageUrl(seed: string): string {

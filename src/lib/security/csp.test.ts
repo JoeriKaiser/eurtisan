@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { buildCspHeader } from './csp'
+import { THEME_INIT_SCRIPT, THEME_INIT_SCRIPT_HASH } from './theme-script'
 
 describe('buildCspHeader', () => {
   it('includes default-src self', () => {
@@ -94,5 +96,15 @@ describe('buildCspHeader', () => {
     expect(csp).toContain('https://api.umami.is')
     process.env.VITE_UMAMI_SCRIPT_URL = originalScript
     process.env.VITE_UMAMI_HOST_URL = originalHost
+  })
+
+  it('includes the pinned theme initialization script SHA-256 hash when nonce is provided', () => {
+    const computedHash = `'sha256-${createHash('sha256').update(THEME_INIT_SCRIPT).digest('base64')}'`
+    expect(THEME_INIT_SCRIPT_HASH).toBe(computedHash)
+
+    const csp = buildCspHeader({ nonce: 'test-nonce-1234' })
+    expect(csp).toContain(
+      `script-src 'self' 'nonce-test-nonce-1234' 'strict-dynamic' ${THEME_INIT_SCRIPT_HASH}`,
+    )
   })
 })

@@ -14,6 +14,12 @@ describe('getImageUrl', () => {
     expect(getImageUrl('/uploads/legacy/image.jpg')).toBe('/uploads/legacy/image.jpg')
   })
 
+  it('returns existing /api/image delivery paths as-is', () => {
+    expect(getImageUrl('/api/image?key=products%2Fabc.jpg')).toBe(
+      '/api/image?key=products%2Fabc.jpg',
+    )
+  })
+
   it('builds a same-origin delivery URL with width', () => {
     expect(getImageUrl('products/abc.jpg', { width: 400 })).toBe(
       '/api/image?key=products%2Fabc.jpg&width=400',
