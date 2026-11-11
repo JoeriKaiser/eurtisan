@@ -1,4 +1,5 @@
 import '@tanstack/react-start/server-only'
+import { THEME_INIT_SCRIPT_HASH } from './theme-script'
 
 /**
  * Content Security Policy configuration for Eurtisan.
@@ -84,6 +85,7 @@ export function buildCspHeader(options: BuildCspHeaderOptions = {}): string {
   if (options.nonce) {
     scriptSrc.add(`'nonce-${options.nonce}'`)
     scriptSrc.add("'strict-dynamic'")
+    scriptSrc.add(THEME_INIT_SCRIPT_HASH)
   } else {
     scriptSrc.add("'unsafe-inline'")
   }
