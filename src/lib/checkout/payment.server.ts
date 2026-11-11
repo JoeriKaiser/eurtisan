@@ -3,7 +3,7 @@ import { db } from '#/db/index'
 import { inventoryReservation, paymentAttempt, platformOrder } from '#/db/schema'
 import { SUPPORTED_CURRENCY } from '../currency'
 import { decrypt, decryptJsonb, encrypt } from '../encryption.server'
-import { getBaseUrl } from '../env.server'
+import { getBaseUrl, getWebhookBaseUrl } from '../env.server'
 import { paymentInitiationRetriesTotal } from '../infra/metrics.server'
 import { logger } from '../logger.server'
 import type { PaymentProvider } from '../payment-provider'
@@ -11,9 +11,10 @@ import type { RetryPaymentResult } from './types'
 
 function getPaymentUrls(platformOrderId: string): { redirectUrl: string; webhookUrl: string } {
   const baseUrl = getBaseUrl()
+  const webhookBaseUrl = getWebhookBaseUrl()
   return {
     redirectUrl: `${baseUrl}/orders/${platformOrderId}/success`,
-    webhookUrl: `${baseUrl}/api/webhooks/mollie`,
+    webhookUrl: `${webhookBaseUrl}/api/webhooks/mollie`,
   }
 }
 

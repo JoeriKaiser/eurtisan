@@ -131,7 +131,8 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
       EMAIL_SMTP_HOST: mailpit
       EMAIL_SMTP_PORT: 1025
-      MOCK_PAYMENTS_ENABLED: "true"
+      MOCK_PAYMENTS_ENABLED: ${MOCK_PAYMENTS_ENABLED:-true}
+      WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-}
       S3_ENDPOINT: http://garage:3900
       S3_PUBLIC_ENDPOINT: http://localhost:3900
       S3_REGION: garage
@@ -171,7 +172,7 @@ services:
     environment:
       EMAIL_SMTP_HOST: mailpit
       EMAIL_SMTP_PORT: 1025
-      MOCK_PAYMENTS_ENABLED: "true"
+      MOCK_PAYMENTS_ENABLED: ${MOCK_PAYMENTS_ENABLED:-true}
     depends_on:
       db:
         condition: service_healthy

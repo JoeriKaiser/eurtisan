@@ -3,12 +3,13 @@ import {
   assertMockPayoutsNotProduction,
   getFinancialTotalsReconciliationBatchSize,
   getFinancialTotalsReconciliationIntervalMs,
-  getNotificationDigestIntervalMs,
-  getNotificationDigestRecipientBatchSize,
   getHealthDiskThresholdBytes,
   getMolliePaymentReconciliationBatchSize,
   getMolliePaymentReconciliationIntervalMs,
   getMolliePaymentReconciliationMinAgeMs,
+  getNotificationDigestIntervalMs,
+  getNotificationDigestRecipientBatchSize,
+  getWebhookBaseUrl,
 } from './env.server'
 
 describe('assertMockPayoutsNotProduction', () => {
@@ -173,5 +174,34 @@ describe('getHealthDiskThresholdBytes', () => {
   it('falls back to the default for non-positive values', () => {
     process.env.HEALTH_DISK_THRESHOLD_BYTES = '-1'
     expect(getHealthDiskThresholdBytes()).toBe(500 * 1024 * 1024)
+  })
+})
+
+describe('getWebhookBaseUrl', () => {
+  const originalWebhookBaseUrl = process.env.WEBHOOK_BASE_URL
+  const originalPublicUrl = process.env.PUBLIC_URL
+
+  afterEach(() => {
+    if (originalWebhookBaseUrl === undefined) {
+      delete process.env.WEBHOOK_BASE_URL
+    } else {
+      process.env.WEBHOOK_BASE_URL = originalWebhookBaseUrl
+    }
+    if (originalPublicUrl === undefined) {
+      delete process.env.PUBLIC_URL
+    } else {
+      process.env.PUBLIC_URL = originalPublicUrl
+    }
+  })
+
+  it('returns WEBHOOK_BASE_URL when defined, stripping trailing slashes', () => {
+    process.env.WEBHOOK_BASE_URL = 'https://tunnel.eurtisan.test/'
+    expect(getWebhookBaseUrl()).toBe('https://tunnel.eurtisan.test')
+  })
+
+  it('falls back to getBaseUrl() when WEBHOOK_BASE_URL is not set', () => {
+    delete process.env.WEBHOOK_BASE_URL
+    process.env.PUBLIC_URL = 'https://market.eurtisan.eu'
+    expect(getWebhookBaseUrl()).toBe('https://market.eurtisan.eu')
   })
 })
