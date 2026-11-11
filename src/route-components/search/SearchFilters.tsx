@@ -180,7 +180,7 @@ export function SearchFilters({
           {hasActiveFilters ? (
             <Link
               to='/search'
-              search={{}}
+              search={(prev) => (typeof prev.q === 'string' && prev.q ? { q: prev.q } : {})}
               className='mt-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-sm font-semibold text-text-secondary no-underline transition-colors hover:text-text-primary'
             >
               <X size={15} aria-hidden='true' />

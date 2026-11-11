@@ -262,7 +262,7 @@ function SearchPageContent() {
               </p>
               <Link
                 to='/search'
-                search={{}}
+                search={(prev) => (typeof prev.q === 'string' && prev.q ? { q: prev.q } : {})}
                 className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
               >
                 {m.search_clear_filters()}
