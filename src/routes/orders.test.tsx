@@ -120,7 +120,17 @@ vi.mock('#/paraglide/messages', () => ({
     error_order_not_delivered: () => 'Order must be delivered before opening a dispute',
     error_order_delivery_date_missing: () => 'Order delivery date is missing',
     error_non_delivery_not_eligible: () => 'This order is not yet eligible.',
+    product_add_to_cart: () => 'Add to cart',
+    cart_add_success: () => 'Added to cart',
+    cart_add_error: () => 'Failed to add item to cart',
   },
+}))
+
+const mockAddToCartMutate = vi.fn().mockResolvedValue({ success: true })
+vi.mock('#/lib/cart-hooks', () => ({
+  useAddToCart: () => ({
+    mutateAsync: mockAddToCartMutate,
+  }),
 }))
 
 vi.mock('#/lib/orders-ui', () => ({
@@ -1086,5 +1096,103 @@ describe('Order detail page', () => {
     expect(screen.getByRole('link', { name: 'View dispute' }).getAttribute('href')).toContain(
       'disp-new',
     )
+  })
+
+  it('renders re-order action and adds item to cart', async () => {
+    mockAddToCartMutate.mockClear()
+    const order = makeOrderDetail({
+      status: 'paid',
+      shops: [
+        {
+          shopOrderId: 'shop-order-1',
+          shopId: 'shop-1',
+          shopName: 'Artisan Workshop',
+          shippingMethod: 'standard',
+          shippingRateId: 'rate-1',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          vatAmountCents: 0,
+          shippingVatRateBasisPoints: 0,
+          shippingVatAmountCents: 0,
+          status: 'paid',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: null,
+          shippingLabels: [],
+          trackingStatus: null,
+          invoiceNumber: null,
+          disputeId: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-mug-123',
+              productName: 'Ceramic Mug',
+              unitPriceCents: 2000,
+              quantity: 1,
+              totalCents: 2000,
+              vatRateBasisPoints: 0,
+              vatAmountCents: 0,
+            },
+          ],
+        },
+      ],
+    })
+
+    render(<BuyerOrderDetailPage order={order} />)
+    const buyAgainBtn = screen.getByRole('button', { name: 'Add to cart: Ceramic Mug' })
+    expect(buyAgainBtn).toBeDefined()
+
+    fireEvent.click(buyAgainBtn)
+
+    await waitFor(() => {
+      expect(mockAddToCartMutate).toHaveBeenCalledWith({
+        productId: 'prod-mug-123',
+        quantity: 1,
+      })
+      expect(screen.getByText('Added to cart')).toBeDefined()
+    })
+  })
+
+  it('hides re-order action when order is cancelled', () => {
+    const order = makeOrderDetail({
+      status: 'cancelled',
+      shops: [
+        {
+          shopOrderId: 'shop-order-1',
+          shopId: 'shop-1',
+          shopName: 'Artisan Workshop',
+          shippingMethod: 'standard',
+          shippingRateId: 'rate-1',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          vatAmountCents: 0,
+          shippingVatRateBasisPoints: 0,
+          shippingVatAmountCents: 0,
+          status: 'cancelled',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: null,
+          shippingLabels: [],
+          trackingStatus: null,
+          invoiceNumber: null,
+          disputeId: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-mug-123',
+              productName: 'Ceramic Mug',
+              unitPriceCents: 2000,
+              quantity: 1,
+              totalCents: 2000,
+              vatRateBasisPoints: 0,
+              vatAmountCents: 0,
+            },
+          ],
+        },
+      ],
+    })
+
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.queryByRole('button', { name: 'Add to cart: Ceramic Mug' })).toBeNull()
   })
 })

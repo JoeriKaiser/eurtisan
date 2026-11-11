@@ -3,6 +3,7 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  Check,
   Clock,
   Download,
   ExternalLink,
@@ -10,12 +11,14 @@ import {
   MapPin,
   MessageSquare,
   Package,
+  ShoppingBag,
   Star,
   Truck,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useCountdown, useReservationCountdown } from '#/hooks/useCountdown'
+import { useAddToCart } from '#/lib/cart-hooks'
 import { rebuildCartFromOrder, retryPayment } from '#/lib/checkout'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -31,7 +34,7 @@ import { openDispute } from '#/lib/disputes'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { formatDateLong } from '#/lib/format-date'
 import { getImageUrl } from '#/lib/image-url'
-import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
+import type { OrderDetail, OrderItemDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { createReview } from '#/lib/reviews'
@@ -106,6 +109,89 @@ export interface BuyerOrderDetailPageProps {
   reviewableItems?: ReviewableItem[]
   returns?: ReturnRequestSummary[]
   backTo?: string
+}
+
+function BuyerOrderItemRow({ item, canReorder }: { item: OrderItemDetail; canReorder: boolean }) {
+  const addToCartMutation = useAddToCart()
+  const [reorderStatus, setReorderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    'idle',
+  )
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleBuyAgain = async () => {
+    if (reorderStatus === 'loading') return
+    setReorderStatus('loading')
+    try {
+      await addToCartMutation.mutateAsync({
+        productId: item.productId,
+        quantity: 1,
+      })
+      setReorderStatus('success')
+    } catch {
+      setReorderStatus('error')
+    } finally {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      timeoutRef.current = setTimeout(() => setReorderStatus('idle'), 3500)
+    }
+  }
+
+  return (
+    <li className='flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3'>
+      <div className='flex flex-1 items-center gap-3'>
+        <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+          {item.imageUrl ? (
+            <img
+              src={getImageUrl(item.imageUrl, { width: 96, format: 'webp' })}
+              alt={item.productName}
+              className='h-full w-full object-cover'
+              loading='lazy'
+            />
+          ) : (
+            <>
+              <span className='sr-only'>{item.productName}</span>
+              <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
+            </>
+          )}
+        </div>
+        <div className='flex-1'>
+          <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
+          <p className='text-xs text-text-secondary'>
+            {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
+          </p>
+        </div>
+      </div>
+      <div className='flex items-center justify-between gap-3 sm:justify-end'>
+        <span className='text-sm font-medium text-text-primary'>
+          {formatPriceEUR(item.totalCents)}
+        </span>
+        {canReorder && (
+          <div className='flex items-center gap-2'>
+            {reorderStatus === 'success' ? (
+              <span className='inline-flex items-center gap-1 text-xs font-medium text-success'>
+                <Check size={14} aria-hidden='true' />
+                {m.cart_add_success()}
+              </span>
+            ) : reorderStatus === 'error' ? (
+              <span className='text-xs font-medium text-error'>{m.cart_add_error()}</span>
+            ) : (
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                onClick={() => void handleBuyAgain()}
+                isLoading={reorderStatus === 'loading'}
+                className='h-8 px-2.5 text-xs'
+                aria-label={`${m.product_add_to_cart()}: ${item.productName}`}
+              >
+                <ShoppingBag size={12} aria-hidden='true' />
+                {m.product_add_to_cart()}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  )
 }
 
 const EMPTY_ITEMS: ReviewableItem[] = []
@@ -469,32 +555,11 @@ export default function BuyerOrderDetailPage({
                 {/* Items list first so buyers see what they paid for above the fold */}
                 <ul className='divide-y divide-border-subtle'>
                   {shop.items.map((item) => (
-                    <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
-                      <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
-                        {item.imageUrl ? (
-                          <img
-                            src={getImageUrl(item.imageUrl, { width: 96, format: 'webp' })}
-                            alt={item.productName}
-                            className='h-full w-full object-cover'
-                            loading='lazy'
-                          />
-                        ) : (
-                          <>
-                            <span className='sr-only'>{item.productName}</span>
-                            <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
-                          </>
-                        )}
-                      </div>
-                      <div className='flex-1'>
-                        <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
-                        <p className='text-xs text-text-secondary'>
-                          {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
-                        </p>
-                      </div>
-                      <span className='text-sm font-medium text-text-primary'>
-                        {formatPriceEUR(item.totalCents)}
-                      </span>
-                    </li>
+                    <BuyerOrderItemRow
+                      key={item.id}
+                      item={item}
+                      canReorder={!isCancelled && !isPending}
+                    />
                   ))}
                 </ul>
 
