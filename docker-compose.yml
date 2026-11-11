@@ -146,6 +146,7 @@ services:
       VITE_FARO_SAMPLE_RATE: "1"
       VITE_UMAMI_ENABLED: "false"
       VITE_ANALYTICS_CONSENT_REQUIRED: "false"
+      SENDCLOUD_WEBHOOK_SECRET: ${SENDCLOUD_WEBHOOK_SECRET:-dev-sendcloud-webhook-secret}
       PLAYWRIGHT_BROWSERS_PATH: /app/node_modules/playwright-browsers
     depends_on:
       db:
