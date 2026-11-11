@@ -1436,33 +1436,36 @@ export async function resolveManualReviewQuery(
   shopOrderId: string,
   input: ResolveManualReviewInput,
 ): Promise<ShopOrderDetail> {
-  const resolved = await db.transaction(async (tx) => {
-    const [record] = await tx
-      .select()
-      .from(shopOrder)
-      .where(eq(shopOrder.id, shopOrderId))
-      .for('update')
-      .limit(1)
+  if (input.resolution === 'paid') {
+    const resolved = await db.transaction(async (tx) => {
+      const [record] = await tx
+        .select()
+        .from(shopOrder)
+        .where(eq(shopOrder.id, shopOrderId))
+        .for('update')
+        .limit(1)
 
-    if (!record) {
-      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
+      if (!record) {
+        throw new Response(
+          JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }),
+          {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        )
+      }
 
-    const currentStatus = record.status as OrderStatus
-    if (!isValidStatusTransition(currentStatus, input.resolution)) {
-      throw new Response(
-        JSON.stringify({
-          error: 'Bad Request',
-          message: `Cannot resolve manual review from '${currentStatus}' to '${input.resolution}'`,
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
+      const currentStatus = record.status as OrderStatus
+      if (!isValidStatusTransition(currentStatus, 'paid')) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Request',
+            message: `Cannot resolve manual review from '${currentStatus}' to 'paid'`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
 
-    if (input.resolution === 'paid') {
       // Verify stock availability before resolving to paid. Manual-review orders
       // may have been held for minutes or hours; inventory could have changed.
       const items = await tx
@@ -1579,85 +1582,189 @@ export async function resolveManualReviewQuery(
           rejectOnShortfall: true,
         })
       }
-    } else if (input.resolution === 'cancelled') {
-      // A manual-review order has already been paid by the buyer. Cancelling it
-      // must refund the buyer before we release stock (P0-1).
-      const [platformOrderRecord] = await tx
-        .select({ molliePaymentId: platformOrder.molliePaymentId })
-        .from(platformOrder)
-        .where(eq(platformOrder.id, record.platformOrderId))
-        .limit(1)
 
-      if (!platformOrderRecord?.molliePaymentId) {
-        throw new Response(
-          JSON.stringify({
-            error: 'Bad Gateway',
-            message: 'Parent payment is not available for refund',
-          }),
-          { status: 502, headers: { 'Content-Type': 'application/json' } },
-        )
+      await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+      const order = await getShopOrderQuery(shopOrderId, tx)
+      if (!order) return shopOrderNotFoundAfterUpdate()
+      return order
+    })
+
+    logManualReviewResolved({
+      shopOrderId,
+      platformOrderId: resolved.platformOrderId,
+      resolution: input.resolution,
+      reason: input.reason,
+    })
+
+    return resolved
+  }
+
+  // A manual-review order has already been paid by the buyer. Cancelling it
+  // must refund the buyer before we release stock (P0-1).
+  // Step 1: record intent, reverse payout, and create credit note before contacting Mollie.
+  const prepared = await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!record) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const currentStatus = record.status as OrderStatus
+    if (!isValidStatusTransition(currentStatus, 'cancelled')) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Cannot resolve manual review from '${currentStatus}' to 'cancelled'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const [platformOrderRecord] = await tx
+      .select({ molliePaymentId: platformOrder.molliePaymentId })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, record.platformOrderId))
+      .limit(1)
+
+    if (!platformOrderRecord?.molliePaymentId) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Gateway',
+          message: 'Parent payment is not available for refund',
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const refundCents =
+      record.refundPendingCents > 0
+        ? record.refundPendingCents
+        : record.subtotalCents + record.shippingCostCents - record.refundedCents
+
+    if (refundCents <= 0) {
+      return {
+        skipNetwork: true,
+        platformOrderId: record.platformOrderId,
+        molliePaymentId: platformOrderRecord.molliePaymentId,
+        refundCents: 0,
+        reversalOptions: {},
       }
+    }
 
-      const refundCents = record.subtotalCents + record.shippingCostCents - record.refundedCents
-      const reversalOptions = await reversePayoutForRefund(
+    let reversalOptions = {}
+    if (record.refundPendingCents === 0) {
+      reversalOptions = await reversePayoutForRefund(
         tx,
         shopOrderId,
         refundCents,
         'manual_review_cancelled',
       )
 
-      try {
-        await molliePaymentProvider.refundPayment(
-          platformOrderRecord.molliePaymentId,
-          refundCents,
-          reversalOptions,
-        )
-      } catch (err) {
-        logger.error(`Mollie refund failed for manual review cancellation ${shopOrderId}`, err, {
-          alert: true,
-          shopOrderId,
-          molliePaymentId: platformOrderRecord.molliePaymentId,
-          refundCents,
-        })
-        throw new Response(
-          JSON.stringify({
-            error: 'Bad Gateway',
-            message: 'Mollie refund failed. The order has not been cancelled.',
-          }),
-          { status: 502, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
-
       await tx
         .update(shopOrder)
         .set({
-          status: 'cancelled',
-          refundedCents: record.subtotalCents + record.shippingCostCents,
+          refundPendingCents: refundCents,
+          lastRefundAttemptedAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(shopOrder.id, shopOrderId))
 
+      await createCreditNoteForShopOrder(shopOrderId, tx, refundCents)
+    } else {
+      const [payoutRecord] = await tx
+        .select({ status: payout.status, mollieRouteId: payout.mollieRouteId })
+        .from(payout)
+        .where(eq(payout.shopOrderId, shopOrderId))
+        .limit(1)
+      if (payoutRecord?.status === 'reversed' || payoutRecord?.mollieRouteId) {
+        reversalOptions = { reverseRouting: true }
+      }
+    }
+
+    return {
+      skipNetwork: false,
+      platformOrderId: record.platformOrderId,
+      molliePaymentId: platformOrderRecord.molliePaymentId,
+      refundCents,
+      reversalOptions,
+    }
+  })
+
+  // Step 2: refund the buyer through Mollie outside the database transaction.
+  if (!prepared.skipNetwork) {
+    try {
+      await molliePaymentProvider.refundPayment(prepared.molliePaymentId, prepared.refundCents, {
+        ...prepared.reversalOptions,
+        idempotencyKey: `manual-review-cancel:${shopOrderId}:${prepared.refundCents}`,
+      })
+    } catch (err) {
+      logger.error(`Mollie refund failed for manual review cancellation ${shopOrderId}`, err, {
+        alert: true,
+        shopOrderId,
+        molliePaymentId: prepared.molliePaymentId,
+        refundCents: prepared.refundCents,
+      })
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Gateway',
+          message: 'Mollie refund failed. The order has not been cancelled.',
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
+  // Step 3: finalize cancellation, restore stock, and update totals.
+  const resolved = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!locked) return shopOrderNotFoundAfterUpdate()
+
+    if (locked.status === 'cancelled') {
+      const existing = await getShopOrderQuery(shopOrderId, tx)
+      if (!existing) return shopOrderNotFoundAfterUpdate()
+      return existing
+    }
+
+    await tx
+      .update(shopOrder)
+      .set({
+        status: 'cancelled',
+        refundedCents: locked.subtotalCents + locked.shippingCostCents,
+        refundPendingCents: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(shopOrder.id, shopOrderId))
+
+    if (prepared.refundCents > 0) {
       await tx
         .update(platformOrder)
         .set({
-          refundedCents: sql`${platformOrder.refundedCents} + ${refundCents}`,
+          refundedCents: sql`${platformOrder.refundedCents} + ${prepared.refundCents}`,
           updatedAt: new Date(),
         })
-        .where(eq(platformOrder.id, record.platformOrderId))
-
-      await restoreShopOrderStockInTx(tx, record.platformOrderId, shopOrderId)
-      await createCreditNoteForShopOrder(shopOrderId, tx)
+        .where(eq(platformOrder.id, prepared.platformOrderId))
     }
 
-    await recalcPlatformOrderStatus(tx, record.platformOrderId)
+    await restoreShopOrderStockInTx(tx, prepared.platformOrderId, shopOrderId)
+    await recalcPlatformOrderStatus(tx, prepared.platformOrderId)
 
     const order = await getShopOrderQuery(shopOrderId, tx)
-    if (!order) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
+    if (!order) return shopOrderNotFoundAfterUpdate()
     return order
   })
 

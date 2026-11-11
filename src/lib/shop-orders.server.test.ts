@@ -552,7 +552,7 @@ describe('resolveManualReviewQuery', () => {
     expect(updatedProduct.stockCount).toBe(0)
   })
 
-  it('aborts cancellation when the Mollie refund fails', async () => {
+  it('leaves refund intent recorded and credit note persisted when the Mollie refund fails', async () => {
     const { product: prod, platformOrder: po, shopOrder: so } = await seedManualReviewFixture()
     await db
       .update(platformOrder)
@@ -566,6 +566,7 @@ describe('resolveManualReviewQuery', () => {
     const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
     expect(updatedSo.status).toBe('manual_review')
     expect(updatedSo.refundedCents).toBe(0)
+    expect(updatedSo.refundPendingCents).toBe(1200)
 
     const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
     expect(updatedProduct.stockCount).toBe(3)
@@ -574,7 +575,44 @@ describe('resolveManualReviewQuery', () => {
       .select()
       .from(invoices)
       .where(and(eq(invoices.shopOrderId, so.id), eq(invoices.type, 'credit_note')))
-    expect(creditNotes).toHaveLength(0)
+    expect(creditNotes).toHaveLength(1)
+  })
+
+  it('allows retrying manual-review cancellation after a failed refund attempt without duplicating credit notes', async () => {
+    const { product: prod, platformOrder: po, shopOrder: so } = await seedManualReviewFixture()
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: 'bad' })
+      .where(eq(platformOrder.id, po.id))
+
+    await expect(
+      resolveManualReviewQuery(so.id, { resolution: 'cancelled', reason: 'Fraud check failed' }),
+    ).rejects.toMatchObject({ status: 502 })
+
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: 'tr_mock_000001' })
+      .where(eq(platformOrder.id, po.id))
+
+    const resolved = await resolveManualReviewQuery(so.id, {
+      resolution: 'cancelled',
+      reason: 'Fraud check failed retry',
+    })
+    expect(resolved.status).toBe('cancelled')
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('cancelled')
+    expect(updatedSo.refundedCents).toBe(1200)
+    expect(updatedSo.refundPendingCents).toBe(0)
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updatedProduct.stockCount).toBe(4)
+
+    const creditNotes = await db
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.shopOrderId, so.id), eq(invoices.type, 'credit_note')))
+    expect(creditNotes).toHaveLength(1)
   })
 })
 
