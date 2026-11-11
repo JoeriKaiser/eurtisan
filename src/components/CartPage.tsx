@@ -425,7 +425,7 @@ function CartItemRow({
             type='button'
             onClick={() => onRequestRemove(item)}
             disabled={isRemoving}
-            className='flex-shrink-0 rounded-lg p-1.5 text-text-muted transition-colors hover:bg-error-subtle hover:text-error disabled:opacity-50'
+            className='flex size-11 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-error-subtle hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary disabled:opacity-50'
             aria-label={m.cart_item_remove()}
           >
             {isRemoving ? (
@@ -461,7 +461,7 @@ function CartItemRow({
                 <button
                   type='button'
                   aria-label={m.product_decrease_quantity()}
-                  className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                  className='flex size-11 items-center justify-center rounded-l-lg text-text-primary transition hover:bg-bg-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset disabled:opacity-40'
                   disabled={isUpdating || item.quantity <= 1}
                   onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
                 >
@@ -477,7 +477,7 @@ function CartItemRow({
                 <button
                   type='button'
                   aria-label={m.product_increase_quantity()}
-                  className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                  className='flex size-11 items-center justify-center rounded-r-lg text-text-primary transition hover:bg-bg-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset disabled:opacity-40'
                   disabled={isUpdating || item.quantity >= product.stockCount}
                   onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
                 >
