@@ -58,7 +58,7 @@ describe('SEO & Document Head Metadata Contracts', () => {
       expect(canonical?.href).toContain('/products/handmade-wooden-bowl')
 
       const xDefault = metaResult.links.find(
-        (l) => l.rel === 'alternate' && l.hreflang === 'x-default',
+        (l) => l.rel === 'alternate' && (l.hrefLang === 'x-default' || l.hreflang === 'x-default'),
       )
       expect(xDefault?.href).toBeDefined()
     })
