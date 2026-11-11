@@ -183,6 +183,15 @@ services:
       - eurtisan
     command: bun run job:email-outbox-worker
 
+  cloudflared:
+    image: cloudflare/cloudflared:2024.10.0
+    restart: unless-stopped
+    profiles:
+      - sandbox
+    command: tunnel --no-autoupdate --url http://app:3000
+    networks:
+      - eurtisan
+
 volumes:
   eurtisan_postgres_data:
   eurtisan_meilisearch_data:
