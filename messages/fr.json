@@ -2608,5 +2608,8 @@
   "home_charter_item_3_title": "Protection du droit européen",
   "home_charter_item_3_desc": "Droits des consommateurs européens, tarification transparente et paiements sécurisés via Mollie.",
   "home_charter_item_4_title": "Confidentialité conforme au RGPD",
-  "home_charter_item_4_desc": "Nous ne collectons que les données nécessaires à votre commande. Aucun traceur publicitaire tiers."
+  "home_charter_item_4_desc": "Nous ne collectons que les données nécessaires à votre commande. Aucun traceur publicitaire tiers.",
+  "product_share": "Partager l'annonce",
+  "product_share_copied": "Lien copié",
+  "product_dispatch_calendar_estimate": "Expédition estimée : {window}"
 }

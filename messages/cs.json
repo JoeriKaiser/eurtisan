@@ -2621,5 +2621,8 @@
   "home_charter_item_3_title": "Chráněno právem EU",
   "home_charter_item_3_desc": "Evropská spotřebitelská práva, transparentní ceny a bezpečné platby přes Mollie.",
   "home_charter_item_4_title": "Soukromí podle GDPR",
-  "home_charter_item_4_desc": "Shromažďujeme pouze údaje nezbytné k doručení objednávky. Žádné sledování třetími stranami."
+  "home_charter_item_4_desc": "Shromažďujeme pouze údaje nezbytné k doručení objednávky. Žádné sledování třetími stranami.",
+  "product_share": "Sdílet nabídku",
+  "product_share_copied": "Odkaz zkopírován",
+  "product_dispatch_calendar_estimate": "Odhadované odeslání: {window}"
 }

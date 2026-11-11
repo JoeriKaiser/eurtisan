@@ -2607,5 +2607,8 @@
   "home_charter_item_3_title": "Uniós joggal védve",
   "home_charter_item_3_desc": "Európai fogyasztói jogok, átlátható árak és biztonságos fizetés a Mollie segítségével.",
   "home_charter_item_4_title": "GDPR-kompatibilis adatvédelem",
-  "home_charter_item_4_desc": "Csak a megrendelés teljesítéséhez szükséges adatokat gyűjtjük. Nincs harmadik féltől származó reklámkövetés."
+  "home_charter_item_4_desc": "Csak a megrendelés teljesítéséhez szükséges adatokat gyűjtjük. Nincs harmadik féltől származó reklámkövetés.",
+  "product_share": "Hirdetés megosztása",
+  "product_share_copied": "Hivatkozás másolva",
+  "product_dispatch_calendar_estimate": "Becsült feladás: {window}"
 }

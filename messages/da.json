@@ -2607,5 +2607,8 @@
   "home_charter_item_3_title": "Beskyttet under EU-lov",
   "home_charter_item_3_desc": "Europæiske forbrugerrettigheder, gennemsigtige priser og sikre betalinger via Mollie.",
   "home_charter_item_4_title": "Privatliv efter GDPR",
-  "home_charter_item_4_desc": "Vi indsamler kun det nødvendige for at levere din ordre. Ingen tredjepartssporing."
+  "home_charter_item_4_desc": "Vi indsamler kun det nødvendige for at levere din ordre. Ingen tredjepartssporing.",
+  "product_share": "Del opslag",
+  "product_share_copied": "Link kopieret",
+  "product_dispatch_calendar_estimate": "Forventet afsendelse: {window}"
 }

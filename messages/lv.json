@@ -2614,5 +2614,8 @@
   "home_charter_item_3_title": "Aizsargāts ar ES tiesībām",
   "home_charter_item_3_desc": "Eiropas patērētāju tiesības, caurspīdīgas cenas un droši maksājumi ar Mollie.",
   "home_charter_item_4_title": "Privātums saskaņā ar VDAR",
-  "home_charter_item_4_desc": "Mēs ievācam tikai pasūtījuma piegādei nepieciešamos datus. Nekādas trešo pušu reklāmas izsekošanas."
+  "home_charter_item_4_desc": "Mēs ievācam tikai pasūtījuma piegādei nepieciešamos datus. Nekādas trešo pušu reklāmas izsekošanas.",
+  "product_share": "Kopīgot sludinājumu",
+  "product_share_copied": "Saite nokopēta",
+  "product_dispatch_calendar_estimate": "Paredzamā nosūtīšana: {window}"
 }

@@ -2614,5 +2614,8 @@
   "home_charter_item_3_title": "Zaštićeno zakonodavstvom EU-a",
   "home_charter_item_3_desc": "Europska potrošačka prava, transparentne cijene i sigurna plaćanja putem Mollieja.",
   "home_charter_item_4_title": "Privatnost u skladu s GDPR-om",
-  "home_charter_item_4_desc": "Prikupljamo samo podatke nužne za dostavu narudžbe. Nema praćenja trećih strana."
+  "home_charter_item_4_desc": "Prikupljamo samo podatke nužne za dostavu narudžbe. Nema praćenja trećih strana.",
+  "product_share": "Podijeli oglas",
+  "product_share_copied": "Poveznica kopirana",
+  "product_dispatch_calendar_estimate": "Procijenjeno slanje: {window}"
 }

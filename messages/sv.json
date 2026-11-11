@@ -2607,5 +2607,8 @@
   "home_charter_item_3_title": "Skyddat under EU-lag",
   "home_charter_item_3_desc": "Europeiska konsumenträttigheter, transparenta priser och trygga betalningar via Mollie.",
   "home_charter_item_4_title": "Integritet enligt GDPR",
-  "home_charter_item_4_desc": "Vi samlar bara in det som krävs för din leverans. Ingen tredjepartsreklamspårning."
+  "home_charter_item_4_desc": "Vi samlar bara in det som krävs för din leverans. Ingen tredjepartsreklamspårning.",
+  "product_share": "Dela annons",
+  "product_share_copied": "Länk kopierad",
+  "product_dispatch_calendar_estimate": "Beräknad leverans: {window}"
 }

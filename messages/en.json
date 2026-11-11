@@ -2608,5 +2608,8 @@
   "home_charter_item_3_title": "Protected under EU law",
   "home_charter_item_3_desc": "European consumer rights, transparent pricing, and secure payment processing via Mollie.",
   "home_charter_item_4_title": "GDPR-first privacy",
-  "home_charter_item_4_desc": "We collect only what is needed to deliver your order. No third-party ad tracking."
+  "home_charter_item_4_desc": "We collect only what is needed to deliver your order. No third-party ad tracking.",
+  "product_share": "Share listing",
+  "product_share_copied": "Link copied",
+  "product_dispatch_calendar_estimate": "Estimated dispatch: {window}"
 }
