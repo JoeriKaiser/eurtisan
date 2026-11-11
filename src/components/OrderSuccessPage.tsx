@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { useCountdown, useReservationCountdown } from '#/hooks/useCountdown'
 import { rebuildCartFromOrder } from '#/lib/checkout'
+import { getImageUrl } from '#/lib/image-url'
 import type { OrderDetail } from '#/lib/orders.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -248,7 +249,7 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                       <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                         {item.imageUrl ? (
                           <img
-                            src={item.imageUrl}
+                            src={getImageUrl(item.imageUrl, { width: 96, format: 'webp' })}
                             alt={item.productName}
                             className='h-full w-full object-cover'
                             loading='lazy'

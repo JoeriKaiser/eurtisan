@@ -200,6 +200,20 @@ describe('CartPage', () => {
     expect(img.getAttribute('src')).toBe('http://example.com/vase.jpg')
   })
 
+  it('renders object key product images via same-origin delivery URL', () => {
+    const cart = makeCart()
+    const item = cart.shops[0]?.items[0]
+    if (item?.product) {
+      item.product.imageUrl = 'products/artisan-vase.jpg'
+    }
+    render(<CartPage cart={cart} />)
+    const img = screen.getByAltText('Vase')
+    expect(img).toBeDefined()
+    expect(img.getAttribute('src')).toBe(
+      '/api/image?key=products%2Fartisan-vase.jpg&width=192&format=webp',
+    )
+  })
+
   it('renders quantity controls', () => {
     render(<CartPage cart={makeCart()} />)
     expect(screen.getByLabelText('Decrease quantity')).toBeDefined()

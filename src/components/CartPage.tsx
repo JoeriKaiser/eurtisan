@@ -17,6 +17,7 @@ import { authClient } from '#/lib/auth-client'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
 import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
 import { getCartDistinctItemCount, isCartEmpty } from '#/lib/cart-ui'
+import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
@@ -371,7 +372,7 @@ function CartItemRow({
       <div className='flex size-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-inset sm:h-24 sm:w-24'>
         {product?.imageUrl ? (
           <img
-            src={product.imageUrl}
+            src={getImageUrl(product.imageUrl, { width: 192, format: 'webp' })}
             alt={product.name}
             className={`h-full w-full object-cover ${item.unavailable ? 'opacity-50 grayscale' : ''}`}
             loading='lazy'

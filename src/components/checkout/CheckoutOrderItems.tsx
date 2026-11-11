@@ -1,6 +1,7 @@
 import { Package } from 'lucide-react'
 import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import type { CheckoutSummary } from '#/lib/checkout.server'
+import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
@@ -29,7 +30,7 @@ export function CheckoutOrderItems({ currentSummary }: CheckoutOrderItemsProps) 
                   <div className='flex size-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                     {item.imageUrl ? (
                       <img
-                        src={item.imageUrl}
+                        src={getImageUrl(item.imageUrl, { width: 128, format: 'webp' })}
                         alt={item.name}
                         className='h-full w-full object-cover'
                         loading='lazy'

@@ -30,6 +30,7 @@ import {
 import { openDispute } from '#/lib/disputes'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { formatDateLong } from '#/lib/format-date'
+import { getImageUrl } from '#/lib/image-url'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -472,7 +473,7 @@ export default function BuyerOrderDetailPage({
                       <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                         {item.imageUrl ? (
                           <img
-                            src={item.imageUrl}
+                            src={getImageUrl(item.imageUrl, { width: 96, format: 'webp' })}
                             alt={item.productName}
                             className='h-full w-full object-cover'
                             loading='lazy'

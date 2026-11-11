@@ -60,8 +60,8 @@ export function extractKeyFromUrl(url: string): string | null {
 export function getImageUrl(key: string, options?: ImageUrlOptions): string {
   if (!key) return ''
 
-  // If already a full URL or uploads path, return as-is
-  if (key.startsWith('http') || key.startsWith('/uploads/')) {
+  // If already a full URL, uploads path, or image delivery URL, return as-is
+  if (key.startsWith('http') || key.startsWith('/uploads/') || key.startsWith('/api/image')) {
     return key
   }
 
