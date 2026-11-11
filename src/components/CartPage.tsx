@@ -2,12 +2,16 @@ import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
   ArrowRight,
+  Hammer,
   ImageOff,
+  Layers,
   Loader2,
   Minus,
   PackageX,
   Plus,
+  Scissors,
   ShoppingBag,
+  Sparkles,
   Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -238,17 +242,24 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
   )
 }
 
+const CURATED_CRAFT_SHORTCUTS = [
+  { name: 'Ceramics', slug: 'ceramics', icon: Layers },
+  { name: 'Textiles', slug: 'textiles', icon: Scissors },
+  { name: 'Woodwork', slug: 'woodwork', icon: Hammer },
+  { name: 'Jewellery', slug: 'jewellery', icon: Sparkles },
+] as const
+
 function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
   return (
-    <main className='page-wrap px-4 py-20 text-center'>
-      <div className='mx-auto max-w-md'>
+    <main className='page-wrap px-4 py-16 sm:py-20 text-center'>
+      <div className='mx-auto max-w-lg'>
         {showEmptyMessage && (
           <div className='mb-6 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning-strong'>
             {m.cart_empty_checkout_message()}
           </div>
         )}
         <div className='rounded-[2rem] border border-border-subtle bg-scrim-subtle p-2 shadow-md'>
-          <div className='rounded-[calc(2rem-0.5rem)] bg-bg-elevated p-8 sm:p-12 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
+          <div className='rounded-[calc(2rem-0.5rem)] bg-bg-elevated p-8 sm:p-10 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
             <div className='mx-auto mb-6 flex size-20 items-center justify-center rounded-full border border-accent-primary/10 bg-accent-primary-subtle text-accent-primary'>
               <ShoppingBag size={36} strokeWidth={1.5} aria-hidden='true' />
             </div>
@@ -267,6 +278,35 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
             </Link>
           </div>
         </div>
+
+        <section aria-labelledby='empty-cart-categories-heading' className='mt-10'>
+          <h2
+            id='empty-cart-categories-heading'
+            className='mb-4 text-xs font-semibold uppercase tracking-wider text-text-tertiary'
+          >
+            {m.home_categories_title()}
+          </h2>
+          <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
+            {CURATED_CRAFT_SHORTCUTS.map((cat) => {
+              const Icon = cat.icon
+              return (
+                <Link
+                  key={cat.slug}
+                  to='/category/$slug'
+                  params={{ slug: cat.slug }}
+                  className='group flex flex-col items-center gap-2 rounded-2xl border border-border-subtle bg-surface-default p-4 text-center no-underline transition-all duration-fast hover:border-border-strong hover:bg-surface-elevated hover:shadow-xs active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary'
+                >
+                  <div className='flex size-10 items-center justify-center rounded-full bg-accent-primary-subtle text-accent-primary transition-transform duration-fast group-hover:scale-105'>
+                    <Icon size={20} strokeWidth={1.5} aria-hidden='true' />
+                  </div>
+                  <span className='text-xs font-semibold text-text-primary group-hover:text-accent-primary'>
+                    {cat.name}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
       </div>
     </main>
   )

@@ -35,6 +35,7 @@ vi.mock('#/paraglide/messages', () => ({
     cart_empty_title: () => 'Your cart is empty',
     cart_empty_description: () => "Looks like you haven't added anything to your cart yet.",
     cart_empty_browse: () => 'Browse products',
+    home_categories_title: () => 'Browse by category',
     cart_shop_subtotal: () => 'Subtotal',
     cart_item_unavailable: () => 'Unavailable',
     cart_item_stock_warning: (inputs: { count: string }) => `Only ${inputs.count} in stock`,
@@ -141,6 +142,11 @@ describe('CartPage', () => {
       screen.getByText("Looks like you haven't added anything to your cart yet."),
     ).toBeDefined()
     expect(screen.getByRole('link', { name: 'Browse products' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Browse by category' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Ceramics' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Textiles' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Woodwork' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Jewellery' })).toBeDefined()
   })
 
   it('renders empty cart state when shops array is empty', () => {
