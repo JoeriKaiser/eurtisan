@@ -27,8 +27,12 @@ export function HomeValuePropositionStrip() {
 
   return (
     <section aria-label={m.home_charter_landmark()}>
-      <div className='rounded-3xl border border-border-subtle bg-surface-default/60 p-8 sm:p-12'>
+      <div className='rounded-3xl border border-border-subtle bg-surface-default/60 p-8 sm:p-12 relative overflow-hidden'>
+        <div className='absolute inset-x-0 top-0 h-1 bg-accent-primary/20' aria-hidden='true' />
         <header>
+          <div className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-primary mb-2'>
+            <span>{m.home_charter_landmark()}</span>
+          </div>
           <h2 className='display-title text-2xl sm:text-3xl font-bold tracking-tight text-text-primary'>
             {m.home_charter_title()}
           </h2>
@@ -39,8 +43,8 @@ export function HomeValuePropositionStrip() {
 
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mt-8 pt-8 border-t border-border-subtle'>
           {pillars.map(({ Icon, title, description }) => (
-            <div key={title} className='flex flex-col gap-3'>
-              <div className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-primary/10 text-accent-primary'>
+            <div key={title} className='flex flex-col gap-3 group'>
+              <div className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-primary/10 text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
                 <Icon size={20} strokeWidth={1.5} aria-hidden='true' />
               </div>
               <div>
