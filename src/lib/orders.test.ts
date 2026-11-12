@@ -68,6 +68,7 @@ describe('getBuyerOrderDetailQuery', () => {
     expect(result?.shops).toHaveLength(1)
     expect(result?.shops[0].shopId).toBe(shop.id)
     expect(result?.shops[0].shopName).toBe('Test Shop')
+    expect(result?.shops[0].shopSlug).toBe('test-shop')
     expect(result?.shops[0].shippingMethod).toBe('standard')
     expect(result?.shops[0].deliveredAt).toBeNull()
     expect(result?.shops[0].items).toHaveLength(1)
