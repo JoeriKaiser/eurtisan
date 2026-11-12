@@ -3,6 +3,7 @@ import { ArrowRight, MapPin, Search } from 'lucide-react'
 import { useState } from 'react'
 import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
+import { getLocale } from '#/paraglide/runtime'
 
 interface FeaturedMakerShop {
   id: string
@@ -19,7 +20,7 @@ interface FeaturedMakerShop {
 function getCountryName(countryCode: string | null | undefined): string | null {
   if (!countryCode) return null
   try {
-    return new Intl.DisplayNames(['en'], { type: 'region' }).of(countryCode) ?? countryCode
+    return new Intl.DisplayNames([getLocale()], { type: 'region' }).of(countryCode) ?? countryCode
   } catch {
     return countryCode
   }

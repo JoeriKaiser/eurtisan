@@ -4,19 +4,16 @@ import { getImageUrl } from '#/lib/image-url'
 import type { FeaturedShop } from '#/lib/products'
 import { getShopImageTransitionName, SHARED_IMAGE_TRANSITION_CLASS } from '#/lib/view-transitions'
 import { m } from '#/paraglide/messages'
+import { getLocale } from '#/paraglide/runtime'
 
 interface HomeFeaturedShopsProps {
   shops: FeaturedShop[]
 }
-let regionNames: Intl.DisplayNames | null = null
 
 function getCountryName(code?: string | null): string | null {
   if (!code) return null
   try {
-    if (!regionNames) {
-      regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
-    }
-    return regionNames.of(code) ?? code
+    return new Intl.DisplayNames([getLocale()], { type: 'region' }).of(code) ?? code
   } catch {
     return code
   }
