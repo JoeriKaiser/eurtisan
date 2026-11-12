@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowUpRight, MapPin, Store } from 'lucide-react'
+import { ArrowUpRight, ChevronLeft, ChevronRight, MapPin, Store } from 'lucide-react'
+import { useRef } from 'react'
 import { getImageUrl } from '#/lib/image-url'
 import type { FeaturedShop } from '#/lib/products'
 import { getShopImageTransitionName, SHARED_IMAGE_TRANSITION_CLASS } from '#/lib/view-transitions'
@@ -20,6 +21,14 @@ function getCountryName(code?: string | null): string | null {
 }
 
 export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return
+    const offset = direction === 'left' ? -320 : 320
+    scrollContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' })
+  }
+
   if (shops.length === 0) {
     return (
       <section
@@ -62,9 +71,33 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
             {m.home_shops_subtitle()}
           </p>
         </div>
+
+        {shops.length > 1 && (
+          <div className='flex sm:hidden items-center gap-1.5'>
+            <button
+              type='button'
+              onClick={() => handleScroll('left')}
+              className='flex size-9 items-center justify-center rounded-sm border border-border-subtle bg-surface-default text-text-secondary hover:text-text-primary hover:border-border-strong active:bg-surface-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary'
+              aria-label={m.pagination_previous()}
+            >
+              <ChevronLeft size={16} aria-hidden='true' />
+            </button>
+            <button
+              type='button'
+              onClick={() => handleScroll('right')}
+              className='flex size-9 items-center justify-center rounded-sm border border-border-subtle bg-surface-default text-text-secondary hover:text-text-primary hover:border-border-strong active:bg-surface-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary'
+              aria-label={m.pagination_next()}
+            >
+              <ChevronRight size={16} aria-hidden='true' />
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className='flex overflow-x-auto pb-4 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6 scroll-smooth snap-x snap-mandatory'>
+      <div
+        ref={scrollContainerRef}
+        className='flex overflow-x-auto pb-4 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6 scroll-smooth snap-x snap-mandatory'
+      >
         {shops.map((shop) => {
           const countryName = getCountryName(shop.country)
           const bio = shop.tagline ?? shop.description
