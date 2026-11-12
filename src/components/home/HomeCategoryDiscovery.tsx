@@ -34,7 +34,9 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
   if (categories.length === 0) return null
 
   const [firstCategory, ...otherCategories] = categories
-  const spotlightImageSrc = firstCategory ? getCategoryVignette(firstCategory) : '/images/spotlight_ceramics.webp'
+  const spotlightImageSrc = firstCategory
+    ? getCategoryVignette(firstCategory)
+    : '/images/spotlight_ceramics.webp'
 
   return (
     <section aria-labelledby='categories-heading'>
