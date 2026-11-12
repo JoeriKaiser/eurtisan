@@ -59,7 +59,7 @@ export default function ProductCard({
 
         {isOutOfStock && (
           <div className='absolute inset-0 flex items-center justify-center bg-scrim-image-subtle backdrop-blur-[1px]'>
-            <span className='rounded-full bg-surface-default px-3 py-1 text-xs font-semibold text-text-primary shadow-sm'>
+            <span className='rounded-sm bg-surface-default px-2.5 py-1 text-xs font-semibold text-text-primary shadow-xs'>
               <PackageX size={14} className='inline align-text-bottom mr-1' aria-hidden='true' />
               {m.product_out_of_stock()}
             </span>
@@ -93,7 +93,7 @@ export default function ProductCard({
             />
           </div>
 
-          <span className='inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-1 text-xs text-text-secondary border border-border-default'>
+          <span className='inline-flex items-center gap-1 rounded-sm bg-surface-inset px-2 py-0.5 text-xs text-text-secondary border border-border-default'>
             <Store size={12} aria-hidden='true' />
             <span className='max-w-[120px] truncate'>
               {product.shopName ?? m.product_unknown_shop()}
