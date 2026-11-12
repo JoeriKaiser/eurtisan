@@ -40,6 +40,8 @@ vi.mock('#/paraglide/messages', () => {
     search_no_results_tip_general: () => 'Try fewer or more general words.',
     search_no_results_browse_categories: () => 'Browse categories',
     search_clear_filters: () => 'Clear filters',
+    search_input_placeholder: () => 'Search products...',
+    search_button: () => 'Search',
     search_sort_label: () => 'Sort by',
     search_sort_relevance: () => 'Relevance',
     search_sort_price_asc: () => 'Price (Low to High)',
@@ -147,6 +149,40 @@ describe('SearchPage empty state', () => {
       search: expect.objectContaining({
         maxPrice: 2500,
         q: 'mug',
+      }),
+    })
+  })
+
+  it('submits new query when on-page search form is submitted', () => {
+    mockLoaderData.current = {
+      query: '',
+      products: { products: [], total: 0, totalPages: 0, facets: { categories: [] } },
+      page: 1,
+      categories: [],
+      categorySlug: undefined,
+      shopSlug: undefined,
+      minPriceCents: undefined,
+      maxPriceCents: undefined,
+      inStockOnly: false,
+      sort: 'relevance',
+    }
+
+    render(<SearchPage />)
+
+    const searchInput = screen.getByPlaceholderText('Search products...')
+    expect(searchInput).toBeDefined()
+
+    fireEvent.change(searchInput, { target: { value: 'linen scarf' } })
+    const form = searchInput.closest('form')
+    expect(form).not.toBeNull()
+    if (form) {
+      fireEvent.submit(form)
+    }
+
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/search',
+      search: expect.objectContaining({
+        q: 'linen scarf',
       }),
     })
   })

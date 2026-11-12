@@ -1,7 +1,8 @@
 import { Link, useLoaderData, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle, Tags } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle, Tags, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
+import { Button } from '#/components/ui/button'
 import { parseDecimalCents } from '#/lib/currency'
 import { m } from '#/paraglide/messages'
 import { DiscoveryWall } from './search/DiscoveryWall'
@@ -46,6 +47,7 @@ function SearchPageContent() {
     inStock: inStockOnly ? 'true' : '',
     sort: sort ?? 'relevance',
   })
+  const [searchInput, setSearchInput] = useState(query)
 
   const buildSearchParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
@@ -151,6 +153,46 @@ function SearchPageContent() {
             </Link>
           )}
         </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            const trimmed = searchInput.trim()
+            navigateWithParams({ q: trimmed || undefined, page: 1 })
+          }}
+          className='mt-5 flex w-full max-w-lg items-center gap-2'
+        >
+          <div className='relative flex-1'>
+            <Search
+              size={16}
+              className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-placeholder'
+              aria-hidden='true'
+            />
+            <input
+              type='search'
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={m.search_input_placeholder()}
+              className='h-11 w-full rounded-xl border border-border-default bg-surface-default pl-10 pr-9 text-sm text-text-primary placeholder:text-text-placeholder transition-colors focus-visible:border-accent-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+            />
+            {searchInput ? (
+              <button
+                type='button'
+                onClick={() => {
+                  setSearchInput('')
+                  navigateWithParams({ q: undefined, page: 1 })
+                }}
+                className='absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:text-text-primary'
+                aria-label={m.search_clear_filters()}
+              >
+                <X size={14} aria-hidden='true' />
+              </button>
+            ) : null}
+          </div>
+          <Button type='submit' variant='secondary' size='sm' className='h-11 px-4'>
+            {m.search_button()}
+          </Button>
+        </form>
       </section>
 
       <section className='border-y border-border-default py-4'>
