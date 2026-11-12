@@ -110,7 +110,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
                       </span>
                     )}
                     {countryName && (
-                      <span className='inline-flex items-center gap-1 rounded-full bg-surface-inset border border-border-subtle px-2 py-0.5 text-[10px] font-medium text-text-secondary'>
+                      <span className='inline-flex items-center gap-1 rounded-sm bg-surface-inset border border-border-subtle px-1.5 py-0.5 text-[10px] font-medium text-text-secondary'>
                         <MapPin
                           size={10}
                           className='text-accent-primary shrink-0'

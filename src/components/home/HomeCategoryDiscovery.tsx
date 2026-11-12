@@ -54,7 +54,7 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
                         return <Icon size={24} strokeWidth={1.5} aria-hidden='true' />
                       })()}
                     </div>
-                    <span className='rounded-full bg-surface-inset border border-border-subtle px-3 py-1 text-xs font-semibold text-text-secondary uppercase tracking-wider'>
+                    <span className='rounded-sm bg-surface-inset border border-border-subtle px-2.5 py-1 text-xs font-semibold text-text-secondary uppercase tracking-wider'>
                       {m.home_category_spotlight_badge()}
                     </span>
                   </div>
