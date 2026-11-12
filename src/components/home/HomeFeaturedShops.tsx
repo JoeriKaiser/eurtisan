@@ -64,7 +64,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
         </div>
       </div>
 
-      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
+      <div className='flex overflow-x-auto pb-4 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6 scroll-smooth snap-x snap-mandatory'>
         {shops.map((shop) => {
           const countryName = getCountryName(shop.country)
           const bio = shop.tagline ?? shop.description
@@ -74,7 +74,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
               key={shop.id}
               to='/shops/$shopSlug'
               params={{ shopSlug: shop.slug }}
-              className='group block rounded-2xl border border-border-subtle bg-surface-default p-5 hover:border-accent-primary/40 transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+              className='group flex-none w-[82vw] sm:w-auto snap-start block rounded-2xl border border-border-subtle bg-surface-default p-5 hover:border-accent-primary/40 transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
             >
               <div className='flex items-start gap-3.5'>
                 <div
