@@ -13,17 +13,22 @@ vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
     children: React.ReactNode
     to: string
+    params?: Record<string, string>
     className?: string
     [key: string]: unknown
-  }) => (
-    <a
-      href={props.to as string}
-      className={props.className}
-      aria-label={props['aria-label'] as string}
-    >
-      {props.children}
-    </a>
-  ),
+  }) => {
+    let href = props.to
+    if (props.params) {
+      for (const [k, v] of Object.entries(props.params)) {
+        href = href.replace(`$${k}`, v).replace(`:${k}`, v)
+      }
+    }
+    return (
+      <a href={href} className={props.className} aria-label={props['aria-label'] as string}>
+        {props.children}
+      </a>
+    )
+  },
 }))
 
 vi.mock('#/components/CartProvider', () => ({
@@ -354,9 +359,10 @@ describe('ProductDetail', () => {
     expect(screen.getByText('Handcrafted goods from local artisans.')).toBeDefined()
   })
 
-  it('renders category name', () => {
+  it('renders category name as a link to the category page when slug is available', () => {
     render(<ProductDetail product={makeProduct()} />)
-    expect(screen.getByText('Pottery')).toBeDefined()
+    const categoryLink = screen.getByRole('link', { name: 'Pottery' })
+    expect(categoryLink.getAttribute('href')).toBe('/category/pottery')
   })
 
   it('renders uncategorized when category is null', () => {

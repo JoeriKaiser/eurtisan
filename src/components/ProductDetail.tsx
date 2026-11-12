@@ -242,9 +242,19 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
           <section className='island-shell rounded-2xl p-6 sm:p-8'>
             <div className='mb-3 flex items-start justify-between gap-4'>
               <div>
-                <p className='island-kicker mb-2'>
-                  {product.categoryName ?? m.product_uncategorized()}
-                </p>
+                {product.categorySlug && product.categoryName ? (
+                  <Link
+                    to='/category/$slug'
+                    params={{ slug: product.categorySlug }}
+                    className='island-kicker mb-2 inline-block no-underline transition-colors hover:text-accent-primary'
+                  >
+                    {product.categoryName}
+                  </Link>
+                ) : (
+                  <p className='island-kicker mb-2'>
+                    {product.categoryName ?? m.product_uncategorized()}
+                  </p>
+                )}
                 <h1 className='display-title text-3xl font-semibold text-text-primary sm:text-4xl'>
                   {product.name}
                 </h1>
