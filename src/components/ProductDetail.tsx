@@ -31,6 +31,7 @@ import {
   SHARED_IMAGE_TRANSITION_CLASS,
 } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
+import { ShopAnnouncement } from '#/route-components/shops/storefront/ShopAnnouncement'
 import { m } from '#/paraglide/messages'
 const ReportProductDialog = lazy(() =>
   import('#/components/product/ReportProductDialog').then((m) => ({
@@ -391,6 +392,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                   )}
                 </div>
               </div>
+              <ShopAnnouncement announcement={product.shopAnnouncement ?? null} />
               <TraderStatusDisclosure
                 traderStatus={product.traderStatus}
                 className='mt-4'

@@ -88,6 +88,7 @@ vi.mock('#/paraglide/messages', () => ({
       `${average} out of 5 \u00b7 ${count} reviews`,
     product_more_from_shop: ({ shopName }: { shopName: string }) => `More from ${shopName}`,
     product_more_from_shop_generic: () => 'More from this maker',
+    shop_announcement_label: () => 'Shop announcement',
     product_view_all_from_shop: () => 'View the whole shop',
     rating_out_of_five: ({ rating }: { rating: number }) => `${rating} out of 5 stars`,
     trader_status_trader: () => 'This seller has declared that they are a trader.',
@@ -254,6 +255,17 @@ describe('ProductDetail', () => {
   it('shows no rating line for a product with no approved reviews', () => {
     render(<ProductDetail product={makeProduct({ rating: null })} />)
     expect(screen.queryByText(/out of 5 ·/)).toBeNull()
+  })
+
+  it('shows shop announcement banner when shop has active notice', () => {
+    render(
+      <ProductDetail
+        product={makeProduct({
+          shopAnnouncement: 'Holiday notice: Atelier closed until next Monday.',
+        })}
+      />,
+    )
+    expect(screen.getByText('Holiday notice: Atelier closed until next Monday.')).toBeDefined()
   })
 
   it('shows out-of-stock message when stock is zero', () => {
