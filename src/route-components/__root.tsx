@@ -9,6 +9,7 @@ import { AnalyticsConsentBanner } from '../components/AnalyticsConsentBanner'
 import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
+import { BackToTop } from '#/components/ui/BackToTop'
 
 const Devtools = import.meta.env.DEV
   ? lazy(() => import('../components/Devtools').then((m) => ({ default: m.Devtools })))
@@ -81,6 +82,7 @@ export function RootComponent() {
             <Outlet />
           </div>
           {!isOnboarding && !isAdminRoute && <Footer />}
+          {!isOnboarding && !isAdminRoute && <BackToTop />}
           {!isAuthRoute && <AnalyticsConsentBanner />}
           {Devtools && (
             <Suspense fallback={null}>
