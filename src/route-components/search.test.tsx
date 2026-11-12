@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SearchPage } from './search'
 
@@ -120,5 +120,34 @@ describe('SearchPage empty state', () => {
 
     const browseCategoriesLink = screen.getByRole('link', { name: 'Browse categories' })
     expect(browseCategoriesLink.getAttribute('href')).toBe('/category/all')
+  })
+
+  it('updates price filter when quick price preset is clicked', () => {
+    mockLoaderData.current = {
+      query: 'mug',
+      products: { products: [], total: 0, totalPages: 0, facets: { categories: [] } },
+      page: 1,
+      categories: [],
+      categorySlug: undefined,
+      shopSlug: undefined,
+      minPriceCents: undefined,
+      maxPriceCents: undefined,
+      inStockOnly: false,
+      sort: 'relevance',
+    }
+
+    render(<SearchPage />)
+
+    const presetButton = screen.getByRole('button', { name: '< €25' })
+    expect(presetButton).toBeDefined()
+
+    fireEvent.click(presetButton)
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/search',
+      search: expect.objectContaining({
+        maxPrice: 2500,
+        q: 'mug',
+      }),
+    })
   })
 })
