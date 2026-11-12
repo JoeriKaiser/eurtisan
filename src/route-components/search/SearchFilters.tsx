@@ -31,7 +31,7 @@ export function SearchFilters({
   showCategory?: boolean
 }) {
   const categoryCounts = facets?.categorySlug
-  const inStockCount = facets?.inStock.true
+  const inStockCount = facets?.inStock?.true
 
   const categoryLabel = (name: string, slug: string): string => {
     const count = categoryCounts?.[slug]

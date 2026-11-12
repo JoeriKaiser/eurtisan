@@ -1,5 +1,5 @@
 import { Link, useLoaderData, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle, Tags } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
 import { parseDecimalCents } from '#/lib/currency'
@@ -255,18 +255,45 @@ function SearchPageContent() {
               <h2 className='mb-2 text-xl font-semibold text-text-primary'>
                 {m.search_no_results_title()}
               </h2>
-              <p className='mx-auto mb-6 max-w-lg text-text-secondary'>
+              <p className='mx-auto mb-4 max-w-lg text-text-secondary'>
                 {query
                   ? m.search_no_results_description({ query })
                   : m.search_no_filter_results_description()}
               </p>
-              <Link
-                to='/search'
-                search={(prev) => (typeof prev.q === 'string' && prev.q ? { q: prev.q } : {})}
-                className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
-              >
-                {m.search_clear_filters()}
-              </Link>
+
+              {query && !hasActiveFilters && (
+                <ul className='mx-auto mb-6 max-w-md list-none space-y-1.5 p-0 text-sm text-text-muted'>
+                  <li>{m.search_no_results_tip_spelling()}</li>
+                  <li>{m.search_no_results_tip_general()}</li>
+                </ul>
+              )}
+
+              <div className='flex flex-wrap items-center justify-center gap-3'>
+                {hasActiveFilters ? (
+                  <Link
+                    to='/search'
+                    search={(prev) => (typeof prev.q === 'string' && prev.q ? { q: prev.q } : {})}
+                    className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
+                  >
+                    {m.search_clear_filters()}
+                  </Link>
+                ) : (
+                  <Link
+                    to='/search'
+                    search={{}}
+                    className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
+                  >
+                    {m.search_back_to_discovery()}
+                  </Link>
+                )}
+                <Link
+                  to='/category/all'
+                  className='inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-default bg-surface-default px-5 py-3 text-sm font-semibold text-text-primary no-underline transition-colors hover:border-border-strong hover:bg-surface-inset active:scale-[0.98]'
+                >
+                  <Tags size={16} aria-hidden='true' />
+                  {m.search_no_results_browse_categories()}
+                </Link>
+              </div>
             </div>
           ) : isVisualBrowseMode ? (
             <DiscoveryWall products={products.products} />
