@@ -14,10 +14,29 @@ interface HomeCategoryDiscoveryProps {
   categories: HomeCategoryItem[]
 }
 
+const CATEGORY_VIGNETTE_IMAGES: Record<string, string> = {
+  ceramics: '/images/spotlight_ceramics.webp',
+  textiles: '/images/megamenu/textiles.webp',
+  woodwork: '/images/megamenu/woodwork.webp',
+}
+
+function getCategoryVignette(category: HomeCategoryItem): string {
+  const slug = category.slug.toLowerCase()
+  if (CATEGORY_VIGNETTE_IMAGES[slug]) return CATEGORY_VIGNETTE_IMAGES[slug]
+  const name = category.name.toLowerCase()
+  for (const [key, img] of Object.entries(CATEGORY_VIGNETTE_IMAGES)) {
+    if (name.includes(key) || slug.includes(key)) return img
+  }
+  return '/images/spotlight_ceramics.webp'
+}
+
 export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps) {
   if (categories.length === 0) return null
 
   const [firstCategory, ...otherCategories] = categories
+  const spotlightImageSrc = firstCategory
+    ? getCategoryVignette(firstCategory)
+    : '/images/spotlight_ceramics.webp'
 
   return (
     <section aria-labelledby='categories-heading'>
@@ -54,7 +73,7 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
                         return <Icon size={24} strokeWidth={1.5} aria-hidden='true' />
                       })()}
                     </div>
-                    <span className='rounded-full bg-surface-inset border border-border-subtle px-3 py-1 text-xs font-semibold text-text-secondary uppercase tracking-wider'>
+                    <span className='rounded-sm bg-surface-inset border border-border-subtle px-2.5 py-1 text-xs font-semibold text-text-secondary uppercase tracking-wider'>
                       {m.home_category_spotlight_badge()}
                     </span>
                   </div>
@@ -82,7 +101,7 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
               <div className='md:col-span-5 p-4 sm:p-6 lg:p-8 flex items-center justify-center bg-surface-inset/40 md:border-l md:border-border-subtle'>
                 <div className='relative w-full aspect-[4/3] md:aspect-square overflow-hidden rounded-2xl border border-border-subtle bg-surface-inset'>
                   <img
-                    src='/images/spotlight_ceramics.webp'
+                    src={spotlightImageSrc}
                     alt={m.home_category_spotlight_image_alt()}
                     className='h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]'
                     loading='lazy'

@@ -3,6 +3,7 @@ import { ArrowRight, MapPin, Search } from 'lucide-react'
 import { useState } from 'react'
 import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
+import { getLocale } from '#/paraglide/runtime'
 
 interface FeaturedMakerShop {
   id: string
@@ -19,7 +20,7 @@ interface FeaturedMakerShop {
 function getCountryName(countryCode: string | null | undefined): string | null {
   if (!countryCode) return null
   try {
-    return new Intl.DisplayNames(['en'], { type: 'region' }).of(countryCode) ?? countryCode
+    return new Intl.DisplayNames([getLocale()], { type: 'region' }).of(countryCode) ?? countryCode
   } catch {
     return countryCode
   }
@@ -238,7 +239,7 @@ export function HomeHeroSection({
 
                 <div className='p-5 sm:p-6'>
                   <div className='flex items-center justify-between gap-2 mb-3'>
-                    <span className='inline-flex items-center rounded-full bg-accent-primary-subtle px-2.5 py-0.5 text-xs font-semibold text-accent-primary'>
+                    <span className='inline-flex items-center rounded-sm bg-accent-primary-subtle px-2 py-0.5 text-[11px] font-semibold text-accent-primary uppercase tracking-wider'>
                       {m.home_hero_newest_maker()}
                     </span>
                     {countryName && (
