@@ -50,25 +50,46 @@ import { uploadImageFromFile, uploadImageFromUrl } from '../lib/image-storage.se
 // Configuration
 // =============================================================================
 const IS_E2E_SEED = process.env.E2E_TEST === 'true'
+const IS_FAST_SEED = process.argv.includes('--fast') || process.env.SEED_FAST === 'true'
+const USE_LOCAL_FIXTURE_IMAGES = IS_E2E_SEED || IS_FAST_SEED
 
-const CONFIG = {
-  admins: 6,
-  creators: 35,
-  customers: 100,
-  shopsPerCreator: { min: 0, max: 2 },
-  categories: 15,
-  subcategoriesPerCategory: { min: 0, max: 3 },
-  productsPerShop: { min: 4, max: 22 },
-  imagesPerProduct: { min: 1, max: 5 },
-  carts: 50,
-  itemsPerCart: { min: 1, max: 6 },
-  platformOrders: 180,
-  itemsPerOrder: { min: 1, max: 5 },
-  reviewsRate: 0.65,
-  payouts: 60,
-  notifications: 300,
-  disputes: 15,
-}
+const CONFIG = IS_FAST_SEED
+  ? {
+      admins: 2,
+      creators: 10,
+      customers: 20,
+      shopsPerCreator: { min: 1, max: 1 },
+      categories: 15,
+      subcategoriesPerCategory: { min: 0, max: 2 },
+      productsPerShop: { min: 3, max: 6 },
+      imagesPerProduct: { min: 1, max: 2 },
+      carts: 10,
+      itemsPerCart: { min: 1, max: 4 },
+      platformOrders: 25,
+      itemsPerOrder: { min: 1, max: 4 },
+      reviewsRate: 0.65,
+      payouts: 12,
+      notifications: 40,
+      disputes: 5,
+    }
+  : {
+      admins: 6,
+      creators: 35,
+      customers: 100,
+      shopsPerCreator: { min: 0, max: 2 },
+      categories: 15,
+      subcategoriesPerCategory: { min: 0, max: 3 },
+      productsPerShop: { min: 4, max: 22 },
+      imagesPerProduct: { min: 1, max: 5 },
+      carts: 50,
+      itemsPerCart: { min: 1, max: 6 },
+      platformOrders: 180,
+      itemsPerOrder: { min: 1, max: 5 },
+      reviewsRate: 0.65,
+      payouts: 60,
+      notifications: 300,
+      disputes: 15,
+    }
 
 /** Generate a unique scrypt password hash compatible with Better Auth. */
 function hashPassword(password: string): string {
@@ -80,6 +101,15 @@ function hashPassword(password: string): string {
     maxmem: 128 * 16384 * 16 * 2,
   })
   return `${salt}:${key.toString('hex')}`
+}
+
+let cachedDisposablePasswordHash: string | null = null
+/** Reuse one scrypt hash for random non-login filler accounts to keep seeding fast. */
+function getDisposablePasswordHash(): string {
+  if (!cachedDisposablePasswordHash) {
+    cachedDisposablePasswordHash = hashPassword(randomBytes(32).toString('hex'))
+  }
+  return cachedDisposablePasswordHash
 }
 
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
@@ -371,7 +401,7 @@ async function seedUsers() {
       accountId: id,
       providerId: 'credential',
       userId: id,
-      password: hashPassword(randomBytes(32).toString('hex')),
+      password: getDisposablePasswordHash(),
     })
   }
 
@@ -395,7 +425,7 @@ async function seedUsers() {
         accountId: id,
         providerId: 'credential',
         userId: id,
-        password: hashPassword(randomBytes(32).toString('hex')),
+        password: getDisposablePasswordHash(),
       })
     }
   }
@@ -899,7 +929,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
 
   // Upload shop banners to S3 so shop.image stores real S3 keys.
   console.log('  Uploading shop banners to S3...')
-  if (IS_E2E_SEED) {
+  if (USE_LOCAL_FIXTURE_IMAGES) {
     const key = 'shops/e2e-seed-shop.jpg'
     await uploadImageFromFile(E2E_SHOP_IMAGE_FIXTURE, key, 'image/jpeg')
     for (const shop of shops) {
@@ -1267,7 +1297,7 @@ async function seedProducts(
   // Download placeholder images and upload them to S3 so product_image.url stores real S3 keys.
   if (productImages.length > 0) {
     console.log(`  Uploading ${productImages.length} product images to S3...`)
-    if (IS_E2E_SEED) {
+    if (USE_LOCAL_FIXTURE_IMAGES) {
       const key = 'products/e2e-seed-product.jpg'
       await uploadImageFromFile(E2E_PRODUCT_IMAGE_FIXTURE, key, 'image/jpeg')
       for (const image of productImages) image.url = key

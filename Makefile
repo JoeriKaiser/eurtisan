@@ -1,4 +1,15 @@
-.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify bundle-check test test-related test-accessibility e2e e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status webhook-mollie webhook-sendcloud webhook-brevo sandbox-tunnel shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed db-staging-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
+.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify bundle-check test test-related test-accessibility e2e e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status webhook-mollie webhook-sendcloud webhook-brevo sandbox-tunnel shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-seed db-seed-fast db-staging-seed db-studio i18n-compile init meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
+
+# Run a command inside `app`: reuse the running container if up, otherwise run
+# a one-shot container without starting unrelated backing services.
+define run_in_app
+if [ "$(SKIP_DOCKER_ENSURE_UP)" = "true" ] || [ "$$(docker inspect -f '{{.State.Running}}' eurtisan-app 2>/dev/null || echo false)" = "true" ]; then \
+	docker compose exec -T $(1) app $(2); \
+else \
+	touch .env.garage; \
+	docker compose run --rm --no-deps -T $(1) app $(2); \
+fi
+endef
 
 # Docker Compose lifecycle
 up:
@@ -65,8 +76,8 @@ build: up
 	  -e VITE_UMAMI_WEBSITE_ID= \
 	  app bun run build
 
-bundle-check: ensure-up
-	docker compose exec -T app bun run bundle:check
+bundle-check:
+	@$(call run_in_app,,bun run bundle:check)
 
 preview: up
 	docker compose exec app bun run preview
@@ -78,31 +89,31 @@ production-image-smoke:
 	sh scripts/smoke-production-image.sh
 
 # Tooling
-lint: ensure-up
-	docker compose exec -T app bun run lint
+lint:
+	@$(call run_in_app,,bun run lint)
 
-format: ensure-up
-	docker compose exec -T app bun run format
+format:
+	@$(call run_in_app,,bun run format)
 
-format-fix: ensure-up
-	docker compose exec -T app bun run format:fix
+format-fix:
+	@$(call run_in_app,,bun run format:fix)
 
-check: ensure-up
-	docker compose exec -T app bun run check
+check:
+	@$(call run_in_app,,bun run check)
 
-# Combined static verification gate (lint + format + typecheck in a single container exec)
-verify: ensure-up
-	docker compose exec -T app sh -c "bun run lint && bun run format && bun run check"
+# Combined static verification gate (lint + format + typecheck in a single container invocation)
+verify:
+	@$(call run_in_app,,sh -c "bun run lint && bun run format && bun run check")
 
 # Fail on production dependency advisories of moderate severity or higher.
 # - GHSA-vfj7-8cjw-p6xm: transitive braces dependency inside @tanstack/start-plugin-core.
 # - GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp: seroval vulnerabilities in @tanstack/react-start.
 #   Seroval >= 1.6 breaks TanStack Start SSR query streaming at runtime; await upstream patch.
-audit-production: ensure-up
-	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-p6vx-979v-rg4c --ignore=GHSA-jp82-f5mq-hwhp
+audit-production:
+	@$(call run_in_app,,bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-p6vx-979v-rg4c --ignore=GHSA-jp82-f5mq-hwhp)
 
-i18n-compile: ensure-up
-	docker compose exec -T app bun run i18n:compile
+i18n-compile:
+	@$(call run_in_app,,bun run i18n:compile)
 
 # Observability & alerting validation
 PROMETHEUS_IMAGE ?= prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
@@ -188,15 +199,20 @@ E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
 # db-test container because it is already throwaway.
 UNIT_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_unit
 
-db-migrate-unit: ensure-up
-	@if [ "$$(docker inspect -f '{{.State.Health.Status}}' eurtisan-postgres-test 2>/dev/null)" != "healthy" ]; then \
+db-migrate-unit:
+	@if [ "$(SKIP_DOCKER_ENSURE_UP)" != "true" ] && [ "$$(docker inspect -f '{{.State.Health.Status}}' eurtisan-postgres-test 2>/dev/null)" != "healthy" ]; then \
 		docker compose up -d --wait db-test; \
 	fi
 	@expected=$$(awk -F'[:, ]+' '$$2 == "\"when\"" { c++; if ($$3 > m) m = $$3 } END { print c "|" (m + 0) }' drizzle/meta/_journal.json); \
 	actual=$$(docker compose exec -T db-test psql -U eurtisan -d eurtisan_unit -tAc "SELECT count(*) || '|' || coalesce(max(created_at), 0) FROM public.__drizzle_migrations" 2>/dev/null || echo "0|0"); \
 	if [ "$$expected" != "$$actual" ]; then \
 		docker compose exec -T db-test psql -U eurtisan -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'eurtisan_unit'" | grep -q 1 || docker compose exec -T db-test createdb -U eurtisan eurtisan_unit; \
-		docker compose exec -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate; \
+		if [ "$(SKIP_DOCKER_ENSURE_UP)" = "true" ] || [ "$$(docker inspect -f '{{.State.Running}}' eurtisan-app 2>/dev/null || echo false)" = "true" ]; then \
+			docker compose exec -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate; \
+		else \
+			touch .env.garage; \
+			docker compose run --rm --no-deps -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate; \
+		fi; \
 	fi
 
 # Ensure the isolated E2E database is up before migrating/seeding.
@@ -221,17 +237,36 @@ db-seed-e2e: db-migrate-e2e
 # Bun/JSC heap cap for the test runner. The full browser project needs a large
 # heap because Vitest keeps Vite transforms in memory across ~40 test files.
 BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
+TEST_ENV_FLAGS = -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS))
+TEST_TARGET_ARGS = $(if $(ARGS),$(ARGS),$(filter-out test,$(MAKECMDGOALS)))
 
-test: ensure-up db-migrate-unit
-	@docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app \
-	  bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts $(if $(ARGS),$(ARGS),$(filter-out test,$(MAKECMDGOALS)))
+test:
+	@set -e; \
+	needs_db="true"; \
+	if [ -n "$(strip $(TEST_TARGET_ARGS))" ]; then \
+		if [ "$(SKIP_DOCKER_ENSURE_UP)" = "true" ] || [ "$$(docker inspect -f '{{.State.Running}}' eurtisan-app 2>/dev/null || echo false)" = "true" ]; then \
+			needs_db=$$(docker compose exec -T app bun run scripts/run-vitest-suite.ts --needs-db $(TEST_TARGET_ARGS)); \
+		else \
+			touch .env.garage; \
+			needs_db=$$(docker compose run --rm --no-deps -T app bun run scripts/run-vitest-suite.ts --needs-db $(TEST_TARGET_ARGS)); \
+		fi; \
+	fi; \
+	if [ "$$needs_db" = "true" ]; then \
+		$(MAKE) db-migrate-unit; \
+	fi; \
+	if [ "$(SKIP_DOCKER_ENSURE_UP)" = "true" ] || [ "$$(docker inspect -f '{{.State.Running}}' eurtisan-app 2>/dev/null || echo false)" = "true" ]; then \
+		docker compose exec -T $(TEST_ENV_FLAGS) app bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts $(TEST_TARGET_ARGS); \
+	else \
+		touch .env.garage; \
+		docker compose run --rm --no-deps -T $(TEST_ENV_FLAGS) app bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts $(TEST_TARGET_ARGS); \
+	fi
 
-test-related: ensure-up db-migrate-unit
-	docker compose exec -T app bunx vitest related $(if $(ARGS),$(ARGS),$(filter-out test-related,$(MAKECMDGOALS))) --run
+test-related: db-migrate-unit
+	@$(call run_in_app,,bunx vitest related $(if $(ARGS),$(ARGS),$(filter-out test-related,$(MAKECMDGOALS))) --run)
 
-# Focused rendered accessibility scans and static theme/reflow contracts.
-test-accessibility: ensure-up db-migrate-unit
-	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts \
+# Focused rendered accessibility scans and static theme/reflow contracts (browser-only, DB-free).
+test-accessibility:
+	@$(call run_in_app,$(TEST_ENV_FLAGS),bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts \
 	  src/lib/accessibility/contrast.test.ts \
 	  src/components/ui/accessibility.test.tsx \
 	  src/components/ui/primitives/accessibility.test.tsx \
@@ -243,7 +278,7 @@ test-accessibility: ensure-up db-migrate-unit
 	  src/components/CheckoutPage.test.tsx \
 	  src/components/DisputeThreadPage.test.tsx \
 	  src/route-components/shops/ShopStorefront.test.tsx \
-	  'src/route-components/category/$$slug.test.tsx'
+	  'src/route-components/category/$$slug.test.tsx')
 
 e2e-install: ensure-up
 	docker compose exec -T app bunx playwright install --with-deps chromium
@@ -324,19 +359,19 @@ auth-secret: ensure-up
 
 # Init
 init:
-	docker compose up -d --build
-	docker compose run --rm app bun install
-	docker compose up -d
+	docker compose build app
+	docker compose run --rm --no-deps -T app bun install --frozen-lockfile
+	$(MAKE) up
 	docker compose exec -T app bun run i18n:compile
 	docker compose exec -T app bun run db:migrate
-	docker compose exec -T app bun run db:seed -- --clear --force
+	docker compose exec -T app bun run db:seed -- --clear --force --fast
 
 # Database
 db-generate: up
 	docker compose exec -T app bun run db:generate
 
-db-check: ensure-up
-	docker compose exec -T app bun run db:check
+db-check:
+	@$(call run_in_app,,bun run db:check)
 
 db-migrate: up
 	docker compose exec -T app bun run db:migrate
@@ -349,6 +384,9 @@ db-push: up
 
 db-seed: up
 	docker compose exec -T app bun run src/db/seed.ts --clear --force
+
+db-seed-fast: up
+	docker compose exec -T app bun run src/db/seed.ts --clear --force --fast
 
 # Staging / Production seed: idempotent, additive only. Safe to re-run.
 db-staging-seed: up

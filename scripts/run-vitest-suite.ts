@@ -44,6 +44,30 @@ const UNIT_DB_LOCK_PREFIX = existsSync('/usr/bin/flock')
   : []
 
 const userArgs = process.argv.slice(2)
+if (userArgs[0] === '--needs-db') {
+  const probeArgs = userArgs.slice(1)
+  if (probeArgs.length === 0) {
+    console.log('true')
+    process.exit(0)
+  }
+
+  const { filters, hasExplicitProject } = extractCliArgs(probeArgs)
+  if (hasExplicitProject) {
+    const needsDb = probeArgs.some((arg) => arg === 'unit-db' || arg.includes('unit-db'))
+    console.log(needsDb ? 'true' : 'false')
+    process.exit(0)
+  }
+
+  if (filters.length === 0) {
+    console.log('true')
+    process.exit(0)
+  }
+
+  const needsDb = filters.some((filter) => matchFilterAgainstFiles(filter, database).length > 0)
+  console.log(needsDb ? 'true' : 'false')
+  process.exit(0)
+}
+
 if (userArgs.length > 0) {
   const { filters, flagArgs, hasExplicitProject } = extractCliArgs(userArgs)
   const projectFlags: string[] = []
@@ -96,62 +120,72 @@ if (userArgs.length > 0) {
   process.exit(result.status ?? 1)
 }
 
-const suites: SuiteDefinition[] = [
-  {
-    label: `database unit tests (${database.length} files, serial)`,
-    command: [...UNIT_DB_LOCK_PREFIX, 'bunx', 'vitest', 'run', '--project', 'unit-db'],
-  },
-  {
-    label: `pure unit tests (${pure.length} files, ${workerCount} workers)`,
-    command: [
-      'bunx',
-      'vitest',
-      'run',
-      '--project',
-      'unit-pure',
-      '--fileParallelism',
-      '--maxWorkers',
-      workerCount,
-    ],
-  },
-  {
-    label: `browser tests (${workerCount} workers)`,
-    command: [
-      'bunx',
-      'vitest',
-      'run',
-      '--project',
-      'browser',
-      '--fileParallelism',
-      '--maxWorkers',
-      workerCount,
-    ],
-    env: {
-      [BROWSER_TEST_DATABASE_FREE_ENV]: 'true',
-    },
-  },
-]
+const dbSuite: SuiteDefinition = {
+  label: `database unit tests (${database.length} files, serial)`,
+  command: [...UNIT_DB_LOCK_PREFIX, 'bunx', 'vitest', 'run', '--project', 'unit-db'],
+}
 
-console.log('Running independent Vitest suites concurrently:')
-for (const suite of suites) console.log(`- ${suite.label}`)
+const pureSuite: SuiteDefinition = {
+  label: `pure unit tests (${pure.length} files, ${workerCount} workers)`,
+  command: [
+    'bunx',
+    'vitest',
+    'run',
+    '--project',
+    'unit-pure',
+    '--fileParallelism',
+    '--maxWorkers',
+    workerCount,
+  ],
+}
 
-const results: SuiteResult[] = await Promise.all(
-  suites.map(async (suite) => {
-    const subprocess = Bun.spawn(suite.command, {
-      cwd: process.cwd(),
-      env: { ...baseChildEnvironment, ...suite.env },
-      stdin: 'inherit',
-      stdout: 'pipe',
-      stderr: 'pipe',
-    })
-    const [exitCode, stdout, stderr] = await Promise.all([
-      subprocess.exited,
-      new Response(subprocess.stdout).text(),
-      new Response(subprocess.stderr).text(),
-    ])
-    return { label: suite.label, exitCode, stdout, stderr }
-  }),
-)
+const browserSuite: SuiteDefinition = {
+  label: `browser tests (${workerCount} workers)`,
+  command: [
+    'bunx',
+    'vitest',
+    'run',
+    '--project',
+    'browser',
+    '--fileParallelism',
+    '--maxWorkers',
+    workerCount,
+  ],
+  env: {
+    [BROWSER_TEST_DATABASE_FREE_ENV]: 'true',
+  },
+}
+
+async function runSuite(suite: SuiteDefinition): Promise<SuiteResult> {
+  const subprocess = Bun.spawn(suite.command, {
+    cwd: process.cwd(),
+    env: { ...baseChildEnvironment, ...suite.env },
+    stdin: 'inherit',
+    stdout: 'pipe',
+    stderr: 'pipe',
+  })
+  const [exitCode, stdout, stderr] = await Promise.all([
+    subprocess.exited,
+    new Response(subprocess.stdout).text(),
+    new Response(subprocess.stderr).text(),
+  ])
+  return { label: suite.label, exitCode, stdout, stderr }
+}
+
+// Run pure unit tests before browser tests so their worker pools do not compete for RAM,
+// while running the serial DB suite alongside both.
+console.log('Running Vitest suites (serial DB + staged pure/browser workers):')
+for (const suite of [dbSuite, pureSuite, browserSuite]) console.log(`- ${suite.label}`)
+
+const [dbResult, stagedResults] = await Promise.all([
+  runSuite(dbSuite),
+  (async () => {
+    const pureResult = await runSuite(pureSuite)
+    const browserResult = await runSuite(browserSuite)
+    return [pureResult, browserResult]
+  })(),
+])
+const results: SuiteResult[] = [dbResult, ...stagedResults]
 
 const outputEncoder = new TextEncoder()
 for (const result of results) {

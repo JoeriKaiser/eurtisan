@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 
 export type CompactMessageEntry = string | Record<string, string>
@@ -269,11 +277,93 @@ function emitParaglideMessagesArtifacts(rootDir: string, ordered: OrderedKeysRes
   )
 }
 
+interface CachedI18nManifest {
+  fingerprint: string
+  clientKeys: string[]
+  allKeys: string[]
+  keyToIndex: Record<string, number>
+}
+
+function computeI18nInputFingerprint(rootDir: string, locales: string[]): string {
+  const trackedPaths = [
+    join(rootDir, 'project.inlang/settings.json'),
+    join(rootDir, 'scripts/compile-client-i18n.ts'),
+    ...locales.map((locale) => join(rootDir, `messages/${locale}.json`)),
+  ]
+  return trackedPaths
+    .map((filePath) => {
+      if (!existsSync(filePath)) return `${filePath}:missing`
+      const stat = statSync(filePath)
+      return `${filePath}:${stat.size}:${stat.mtimeMs}`
+    })
+    .join('|')
+}
+
+function hasValidCompiledI18nOutputs(rootDir: string, locales: string[]): boolean {
+  const paraglideDir = join(rootDir, 'src/paraglide')
+  const messagesDir = join(paraglideDir, 'messages')
+  if (existsSync(paraglideDir)) {
+    if (
+      !existsSync(join(paraglideDir, 'messages.js')) ||
+      !existsSync(join(paraglideDir, 'messages.d.ts')) ||
+      !existsSync(join(messagesDir, '_index.js')) ||
+      !existsSync(join(messagesDir, '_index.d.ts'))
+    ) {
+      return false
+    }
+    // Re-run cleanup when `paraglide-js compile` emits per-locale JS modules.
+    for (const entry of readdirSync(messagesDir)) {
+      if (entry !== '_index.js' && entry !== '_index.d.ts') {
+        return false
+      }
+    }
+  }
+
+  for (const locale of locales) {
+    if (
+      !existsSync(join(rootDir, 'public/i18n', `${locale}.js`)) ||
+      !existsSync(join(rootDir, 'public/i18n/ssr', `${locale}.json`))
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
 export function compileClientI18nCatalogs(rootDir = process.cwd()): OrderedKeysResult {
   ensureParaglideRuntimeProject(rootDir)
   const locales = readConfiguredLocales(rootDir)
+  const cachePath = join(rootDir, 'node_modules/.cache/eurtisan-i18n-manifest.json')
+  const fingerprint = computeI18nInputFingerprint(rootDir, locales)
+
+  if (
+    !process.argv.includes('--force') &&
+    existsSync(cachePath) &&
+    hasValidCompiledI18nOutputs(rootDir, locales)
+  ) {
+    try {
+      const cached = JSON.parse(readFileSync(cachePath, 'utf8')) as Partial<CachedI18nManifest>
+      if (
+        cached.fingerprint === fingerprint &&
+        Array.isArray(cached.clientKeys) &&
+        Array.isArray(cached.allKeys) &&
+        cached.keyToIndex &&
+        typeof cached.keyToIndex === 'object'
+      ) {
+        return {
+          clientKeys: cached.clientKeys,
+          allKeys: cached.allKeys,
+          keyToIndex: cached.keyToIndex,
+          fallbackRaw: {},
+        }
+      }
+    } catch {
+      // Fall through to full compilation when the cache file is unreadable.
+    }
+  }
+
   const ordered = getOrderedMessageKeys(rootDir)
-  const { clientKeys, allKeys, fallbackRaw } = ordered
+  const { clientKeys, allKeys, keyToIndex, fallbackRaw } = ordered
 
   const outputDir = join(rootDir, 'public/i18n')
   const serverOutputDir = join(rootDir, 'public/i18n/ssr')
@@ -315,6 +405,16 @@ export function compileClientI18nCatalogs(rootDir = process.cwd()): OrderedKeysR
   }
 
   emitParaglideMessagesArtifacts(rootDir, ordered)
+
+  if (existsSync(join(rootDir, 'node_modules'))) {
+    try {
+      mkdirSync(join(rootDir, 'node_modules/.cache'), { recursive: true })
+      const manifest: CachedI18nManifest = { fingerprint, clientKeys, allKeys, keyToIndex }
+      writeFileSync(cachePath, JSON.stringify(manifest), 'utf8')
+    } catch {
+      // Best-effort cache write
+    }
+  }
 
   return ordered
 }

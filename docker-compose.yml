@@ -2,6 +2,8 @@ services:
   db-test:
     image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     container_name: eurtisan-postgres-test
+    profiles:
+      - test
     restart: "no"
     ports:
       - "127.0.0.1:5439:5432"
@@ -120,7 +122,9 @@ services:
         condition: service_healthy
 
   app:
-    build: .
+    build:
+      context: .
+      target: ${EURTISAN_APP_DOCKER_TARGET:-runtime}
     container_name: eurtisan-app
     restart: "no"
     ports:
@@ -164,7 +168,9 @@ services:
     command: bun run dev
 
   email-outbox-worker:
-    build: .
+    build:
+      context: .
+      target: runtime
     container_name: eurtisan-email-outbox-worker-dev
     restart: "no"
     env_file:

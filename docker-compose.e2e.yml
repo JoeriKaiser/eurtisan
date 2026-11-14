@@ -1,6 +1,12 @@
 # Overlay for `make e2e`: point the app at the isolated test database.
 services:
+  db-test:
+    profiles: !override []
+
   app:
+    build:
+      context: .
+      target: development
     environment:
       DATABASE_URL: postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
       E2E_TEST: "true"
