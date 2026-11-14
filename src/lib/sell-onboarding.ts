@@ -520,6 +520,17 @@ export const getSellerShops = createServerFn({ method: 'GET' })
   })
 
 /**
+ * Returns shops belonging to the current user, or an empty array when unauthenticated.
+ */
+export const getSellerShopsIfSignedIn = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user) return []
+    const { getSellerShopsInternal } = await import('./sell-onboarding.server')
+    return getSellerShopsInternal(context.user.id)
+  })
+
+/**
  * Submits a draft shop for admin review.
  * Requires at least one listing (product) attached to the shop.
  */

@@ -1,5 +1,6 @@
 services:
   db-test:
+    profiles: !override []
     command:
       - postgres
       - -c

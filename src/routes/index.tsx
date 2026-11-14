@@ -1,15 +1,21 @@
-import { createFileRoute, Link, type ErrorComponentProps } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  getRouteApi,
+  Link,
+  type ErrorComponentProps,
+} from '@tanstack/react-router'
 import z from 'zod'
 import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
 import { getFeaturedShops, getMarketplaceStats, listRecentProducts } from '#/lib/products'
-import { getSellerShops } from '#/lib/sell-onboarding'
+import { getSellerShopsIfSignedIn } from '#/lib/sell-onboarding'
 import { createPageMeta } from '#/lib/seo'
 import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
 import { hydrateQueryData } from '#/lib/hydrate-query'
 import { queryKeys } from '#/lib/query-keys'
-import { getCurrentUser } from '#/lib/server-auth'
 import { m } from '#/paraglide/messages'
+
+const rootRoute = getRouteApi('__root__')
 
 function HomeError({ error }: ErrorComponentProps) {
   const isDev = import.meta.env.DEV
@@ -44,16 +50,15 @@ const homeSearchSchema = z.object({
 export const Route = createFileRoute('/')({
   validateSearch: homeSearchSchema,
   loader: async ({ context }) => {
-    const [user, categories, products, shops, stats] = await Promise.all([
-      getCurrentUser().catch(() => null),
+    const [categories, products, shops, stats, sellerShops] = await Promise.all([
       listCategories({ data: {} }),
       listRecentProducts({ data: { limit: 12 } }),
       getFeaturedShops({ data: { limit: 6 } }),
       getMarketplaceStats(),
+      getSellerShopsIfSignedIn().catch(() => []),
     ])
-    const sellerShops = user ? await getSellerShops().catch(() => []) : []
     hydrateQueryData(context.queryClient, queryKeys.categoriesList, categories)
-    return { categories, products, shops, user, sellerShops, stats }
+    return { categories, products, shops, sellerShops, stats }
   },
   head: () => {
     // JSON-LD WebSite structured data
@@ -72,7 +77,8 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { categories, products, shops, user, sellerShops, stats } = Route.useLoaderData()
+  const { categories, products, shops, sellerShops, stats } = Route.useLoaderData()
+  const { user } = rootRoute.useLoaderData()
   const { accountDeleted } = Route.useSearch()
   return (
     <HomePage
