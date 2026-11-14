@@ -111,7 +111,15 @@ export interface BuyerOrderDetailPageProps {
   backTo?: string
 }
 
-function BuyerOrderItemRow({ item, canReorder }: { item: OrderItemDetail; canReorder: boolean }) {
+function BuyerOrderItemRow({
+  item,
+  canReorder,
+  shopSlug,
+}: {
+  item: OrderItemDetail
+  canReorder: boolean
+  shopSlug?: string | null
+}) {
   const addToCartMutation = useAddToCart()
   const [reorderStatus, setReorderStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
     'idle',
@@ -155,9 +163,23 @@ function BuyerOrderItemRow({ item, canReorder }: { item: OrderItemDetail; canReo
         </div>
         <div className='flex-1'>
           <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
-          <p className='text-xs text-text-secondary'>
-            {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
-          </p>
+          <div className='flex items-center gap-2 text-xs text-text-secondary'>
+            <span>
+              {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
+            </span>
+            {shopSlug && (
+              <>
+                <span aria-hidden='true'>·</span>
+                <Link
+                  to='/shops/$shopSlug'
+                  params={{ shopSlug }}
+                  className='font-medium text-accent-primary hover:underline'
+                >
+                  {m.product_visit_shop()}
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
       <div className='flex items-center justify-between gap-3 sm:justify-end'>
@@ -546,7 +568,17 @@ export default function BuyerOrderDetailPage({
             {order.shops.map((shop) => (
               <section key={shop.shopOrderId} className='space-y-3'>
                 <div className='flex flex-wrap items-center justify-between gap-2'>
-                  <h3 className='text-sm font-semibold text-text-primary'>{shop.shopName}</h3>
+                  {shop.shopSlug ? (
+                    <Link
+                      to='/shops/$shopSlug'
+                      params={{ shopSlug: shop.shopSlug }}
+                      className='text-sm font-semibold text-text-primary hover:text-accent-primary hover:underline'
+                    >
+                      {shop.shopName}
+                    </Link>
+                  ) : (
+                    <h3 className='text-sm font-semibold text-text-primary'>{shop.shopName}</h3>
+                  )}
                   <Badge variant={statusBadgeVariant(shop.status)}>
                     {getOrderStatusLabel(shop.status)}
                   </Badge>
@@ -558,6 +590,7 @@ export default function BuyerOrderDetailPage({
                     <BuyerOrderItemRow
                       key={item.id}
                       item={item}
+                      shopSlug={shop.shopSlug}
                       canReorder={!isCancelled && !isPending}
                     />
                   ))}

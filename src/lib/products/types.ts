@@ -50,6 +50,8 @@ export type ProductDetail = PublicProduct & {
     thumbnailSrcset?: string
   }[]
   shopDescription: string | null
+  /** Current notice: holiday closures, dispatch delays, or restock info. */
+  shopAnnouncement?: string | null
   /** Seller-declared CRD status. Null only for a legacy shop awaiting declaration. */
   traderStatus: TraderStatus | null
   categoryId: string | null

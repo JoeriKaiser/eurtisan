@@ -164,6 +164,11 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
         shopName: shopRecord?.name ?? (isUnavailable ? 'Unavailable' : null),
         shopSlug: shopRecord?.slug ?? null,
         shopIsVatRegistered: shopRecord?.isVatRegistered ?? false,
+        processingTimeDays:
+          typeof shopRecord?.processingTimeMinDays === 'number' &&
+          typeof shopRecord?.processingTimeMaxDays === 'number'
+            ? { min: shopRecord.processingTimeMinDays, max: shopRecord.processingTimeMaxDays }
+            : null,
         items: [itemDetail],
         subtotalCents:
           !isUnavailable && productRecord

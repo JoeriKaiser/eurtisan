@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { Input } from '#/components/ui/input'
+import { cn } from '#/lib/cn'
 import type { SearchFacets } from '#/lib/products/types'
 import { m } from '#/paraglide/messages'
 
@@ -31,7 +32,7 @@ export function SearchFilters({
   showCategory?: boolean
 }) {
   const categoryCounts = facets?.categorySlug
-  const inStockCount = facets?.inStock.true
+  const inStockCount = facets?.inStock?.true
 
   const categoryLabel = (name: string, slug: string): string => {
     const count = categoryCounts?.[slug]
@@ -154,6 +155,41 @@ export function SearchFilters({
                   className='h-10 text-sm'
                   aria-label={m.search_filter_max_price()}
                 />
+              </div>
+              <div className='mt-2 flex flex-wrap gap-1.5'>
+                {[
+                  { label: '< €25', min: '', max: '25' },
+                  { label: '€25 - €50', min: '25', max: '50' },
+                  { label: '€50 - €100', min: '50', max: '100' },
+                  { label: '> €100', min: '100', max: '' },
+                ].map((preset) => {
+                  const isActive =
+                    filters.minPrice === preset.min && filters.maxPrice === preset.max
+                  return (
+                    <button
+                      key={preset.label}
+                      type='button'
+                      onClick={() => {
+                        const nextMin = isActive ? '' : preset.min
+                        const nextMax = isActive ? '' : preset.max
+                        setFilters((prev) => ({ ...prev, minPrice: nextMin, maxPrice: nextMax }))
+                        navigateWithParams({
+                          minPrice: nextMin || undefined,
+                          maxPrice: nextMax || undefined,
+                          page: 1,
+                        })
+                      }}
+                      className={cn(
+                        'rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                        isActive
+                          ? 'bg-accent-primary text-text-on-primary'
+                          : 'bg-surface-inset text-text-secondary hover:bg-border-subtle hover:text-text-primary',
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>

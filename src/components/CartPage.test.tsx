@@ -58,6 +58,8 @@ vi.mock('#/paraglide/messages', () => ({
     product_no_image: () => 'No image available',
     product_decrease_quantity: () => 'Decrease quantity',
     product_increase_quantity: () => 'Increase quantity',
+    shop_processing_time: ({ min, max }: { min: number; max: number }) =>
+      `Dispatches in ${min}–${max} business days`,
     vat_included: () => 'incl. VAT',
     vat_exempt_short: () => 'VAT exempt',
   },
@@ -444,6 +446,45 @@ describe('CartPage', () => {
     expect(screen.getByRole('heading', { name: 'Shop B' })).toBeDefined()
     expect(screen.getByText('Vase')).toBeDefined()
     expect(screen.getByText('Bowl')).toBeDefined()
+  })
+
+  it('renders shop dispatch estimate when processingTimeDays is present', () => {
+    const cart = makeCart({
+      shops: [
+        {
+          shopId: 'shop-1',
+          shopName: 'Atelier Céramique',
+          shopSlug: 'atelier-ceramique',
+          shopIsVatRegistered: true,
+          processingTimeDays: { min: 2, max: 4 },
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              quantity: 1,
+              product: {
+                id: 'prod-1',
+                name: 'Vase',
+                slug: 'vase',
+                priceCents: 1000,
+                stockCount: 5,
+                imageUrl: null,
+                weightGrams: null,
+                volumeMl: null,
+                soldBy: null,
+              },
+              unavailable: false,
+              stockWarning: false,
+            },
+          ],
+          subtotalCents: 1000,
+        },
+      ],
+      totalCents: 1000,
+      totalItems: 1,
+    })
+    render(<CartPage cart={cart} />)
+    expect(screen.getByText('Dispatches in 2–4 business days')).toBeDefined()
   })
 })
 

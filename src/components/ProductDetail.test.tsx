@@ -13,17 +13,22 @@ vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
     children: React.ReactNode
     to: string
+    params?: Record<string, string>
     className?: string
     [key: string]: unknown
-  }) => (
-    <a
-      href={props.to as string}
-      className={props.className}
-      aria-label={props['aria-label'] as string}
-    >
-      {props.children}
-    </a>
-  ),
+  }) => {
+    let href = props.to
+    if (props.params) {
+      for (const [k, v] of Object.entries(props.params)) {
+        href = href.replace(`$${k}`, v).replace(`:${k}`, v)
+      }
+    }
+    return (
+      <a href={href} className={props.className} aria-label={props['aria-label'] as string}>
+        {props.children}
+      </a>
+    )
+  },
 }))
 
 vi.mock('#/components/CartProvider', () => ({
@@ -83,6 +88,7 @@ vi.mock('#/paraglide/messages', () => ({
       `${average} out of 5 \u00b7 ${count} reviews`,
     product_more_from_shop: ({ shopName }: { shopName: string }) => `More from ${shopName}`,
     product_more_from_shop_generic: () => 'More from this maker',
+    shop_announcement_label: () => 'Shop announcement',
     product_view_all_from_shop: () => 'View the whole shop',
     rating_out_of_five: ({ rating }: { rating: number }) => `${rating} out of 5 stars`,
     trader_status_trader: () => 'This seller has declared that they are a trader.',
@@ -251,6 +257,17 @@ describe('ProductDetail', () => {
     expect(screen.queryByText(/out of 5 ·/)).toBeNull()
   })
 
+  it('shows shop announcement banner when shop has active notice', () => {
+    render(
+      <ProductDetail
+        product={makeProduct({
+          shopAnnouncement: 'Holiday notice: Atelier closed until next Monday.',
+        })}
+      />,
+    )
+    expect(screen.getByText('Holiday notice: Atelier closed until next Monday.')).toBeDefined()
+  })
+
   it('shows out-of-stock message when stock is zero', () => {
     render(<ProductDetail product={makeProduct({ stockCount: 0 })} />)
     const badges = screen.getAllByText('Out of stock')
@@ -354,9 +371,10 @@ describe('ProductDetail', () => {
     expect(screen.getByText('Handcrafted goods from local artisans.')).toBeDefined()
   })
 
-  it('renders category name', () => {
+  it('renders category name as a link to the category page when slug is available', () => {
     render(<ProductDetail product={makeProduct()} />)
-    expect(screen.getByText('Pottery')).toBeDefined()
+    const categoryLink = screen.getByRole('link', { name: 'Pottery' })
+    expect(categoryLink.getAttribute('href')).toBe('/category/pottery')
   })
 
   it('renders uncategorized when category is null', () => {

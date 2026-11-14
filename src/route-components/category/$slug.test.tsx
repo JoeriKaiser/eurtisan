@@ -9,11 +9,24 @@ const mockNavigate = vi.hoisted(() => vi.fn())
 const mockLoaderData = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
-    <a href={props.to} className={props.className}>
-      {props.children}
-    </a>
-  ),
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+    className?: string
+  }) => {
+    let href = props.to
+    if (props.params) {
+      for (const [k, v] of Object.entries(props.params)) {
+        href = href.replace(`$${k}`, v).replace(`:${k}`, v)
+      }
+    }
+    return (
+      <a href={href} className={props.className}>
+        {props.children}
+      </a>
+    )
+  },
   useRouter: () => ({ navigate: mockNavigate }),
   useLoaderData: () => mockLoaderData.current,
 }))
@@ -27,6 +40,7 @@ vi.mock('#/paraglide/messages', () => {
   // tests with a TypeError.
   const explicit = {
     category_kicker: () => 'Category',
+    categories_all_title: () => 'All categories',
     category_description: ({ name }: { name: string }) =>
       `Browse products in the ${name} category.`,
     category_product_count: ({ count }: { count: number }) =>
@@ -183,6 +197,27 @@ describe('CategoryPage', () => {
   it('hides the subcategory section when there are none', () => {
     render(<CategoryPage />)
     expect(screen.queryByRole('heading', { name: 'Subcategories' })).toBeNull()
+  })
+
+  it('renders breadcrumb trail linking back to all categories', () => {
+    setLoaderData({
+      category: {
+        id: 'cat-1',
+        name: 'Pottery',
+        slug: 'pottery',
+        productCount: 2,
+        children: [],
+        breadcrumbs: [{ id: 'parent-1', name: 'Home & Living', slug: 'home-and-living' }],
+      },
+    })
+    render(<CategoryPage />)
+
+    const breadcrumbsNav = screen.getByRole('navigation', { name: 'breadcrumb' })
+    expect(breadcrumbsNav).toBeDefined()
+    const allCategoriesLink = screen.getByRole('link', { name: 'All categories' })
+    expect(allCategoriesLink.getAttribute('href')).toBe('/category/all')
+    const parentLink = screen.getByRole('link', { name: 'Home & Living' })
+    expect(parentLink.getAttribute('href')).toBe('/category/home-and-living')
   })
 
   describe('browsing controls', () => {

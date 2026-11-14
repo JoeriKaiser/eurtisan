@@ -242,6 +242,7 @@ export async function getPlatformOrderDetailQuery(
       shopOrderId: so.shopOrder.id,
       shopId: so.shopOrder.shopId,
       shopName: so.shop?.name ?? 'Unknown shop',
+      shopSlug: so.shop?.slug ?? null,
       shippingMethod: so.shopOrder.shippingMethod as 'standard' | 'express' | 'manual',
       shippingRateId: so.shopOrder.shippingRateId ?? null,
       shippingCostCents: so.shopOrder.shippingCostCents,

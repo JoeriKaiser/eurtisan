@@ -1,7 +1,8 @@
 import { Link, useLoaderData, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle, Tags, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
+import { Button } from '#/components/ui/button'
 import { parseDecimalCents } from '#/lib/currency'
 import { m } from '#/paraglide/messages'
 import { DiscoveryWall } from './search/DiscoveryWall'
@@ -46,6 +47,7 @@ function SearchPageContent() {
     inStock: inStockOnly ? 'true' : '',
     sort: sort ?? 'relevance',
   })
+  const [searchInput, setSearchInput] = useState(query)
 
   const buildSearchParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
@@ -151,6 +153,46 @@ function SearchPageContent() {
             </Link>
           )}
         </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            const trimmed = searchInput.trim()
+            navigateWithParams({ q: trimmed || undefined, page: 1 })
+          }}
+          className='mt-5 flex w-full max-w-lg items-center gap-2'
+        >
+          <div className='relative flex-1'>
+            <Search
+              size={16}
+              className='absolute left-3.5 top-1/2 -translate-y-1/2 text-text-placeholder'
+              aria-hidden='true'
+            />
+            <input
+              type='search'
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={m.search_input_placeholder()}
+              className='h-11 w-full rounded-xl border border-border-default bg-surface-default pl-10 pr-9 text-sm text-text-primary placeholder:text-text-placeholder transition-colors focus-visible:border-accent-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+            />
+            {searchInput ? (
+              <button
+                type='button'
+                onClick={() => {
+                  setSearchInput('')
+                  navigateWithParams({ q: undefined, page: 1 })
+                }}
+                className='absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:text-text-primary'
+                aria-label={m.search_clear_filters()}
+              >
+                <X size={14} aria-hidden='true' />
+              </button>
+            ) : null}
+          </div>
+          <Button type='submit' variant='secondary' size='sm' className='h-11 px-4'>
+            {m.search_button()}
+          </Button>
+        </form>
       </section>
 
       <section className='border-y border-border-default py-4'>
@@ -255,18 +297,45 @@ function SearchPageContent() {
               <h2 className='mb-2 text-xl font-semibold text-text-primary'>
                 {m.search_no_results_title()}
               </h2>
-              <p className='mx-auto mb-6 max-w-lg text-text-secondary'>
+              <p className='mx-auto mb-4 max-w-lg text-text-secondary'>
                 {query
                   ? m.search_no_results_description({ query })
                   : m.search_no_filter_results_description()}
               </p>
-              <Link
-                to='/search'
-                search={(prev) => (typeof prev.q === 'string' && prev.q ? { q: prev.q } : {})}
-                className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
-              >
-                {m.search_clear_filters()}
-              </Link>
+
+              {query && !hasActiveFilters && (
+                <ul className='mx-auto mb-6 max-w-md list-none space-y-1.5 p-0 text-sm text-text-muted'>
+                  <li>{m.search_no_results_tip_spelling()}</li>
+                  <li>{m.search_no_results_tip_general()}</li>
+                </ul>
+              )}
+
+              <div className='flex flex-wrap items-center justify-center gap-3'>
+                {hasActiveFilters ? (
+                  <Link
+                    to='/search'
+                    search={(prev) => (typeof prev.q === 'string' && prev.q ? { q: prev.q } : {})}
+                    className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
+                  >
+                    {m.search_clear_filters()}
+                  </Link>
+                ) : (
+                  <Link
+                    to='/search'
+                    search={{}}
+                    className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
+                  >
+                    {m.search_back_to_discovery()}
+                  </Link>
+                )}
+                <Link
+                  to='/category/all'
+                  className='inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-default bg-surface-default px-5 py-3 text-sm font-semibold text-text-primary no-underline transition-colors hover:border-border-strong hover:bg-surface-inset active:scale-[0.98]'
+                >
+                  <Tags size={16} aria-hidden='true' />
+                  {m.search_no_results_browse_categories()}
+                </Link>
+              </div>
             </div>
           ) : isVisualBrowseMode ? (
             <DiscoveryWall products={products.products} />

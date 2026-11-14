@@ -52,6 +52,14 @@ describe('DiscoveryWall', () => {
     expect(screen.getAllByText('€49.99')).toHaveLength(3)
   })
 
+  it('renders out-of-stock badge when stock count is zero', () => {
+    render(<DiscoveryWall products={[makeProduct('sold-out', { stockCount: 0 })]} />)
+
+    expect(screen.getByText('Out of stock')).toBeDefined()
+    const link = screen.getByRole('link')
+    expect(link.classList.contains('opacity-80')).toBe(true)
+  })
+
   it('omits products without a routable shop instead of rendering dead links', () => {
     render(
       <DiscoveryWall

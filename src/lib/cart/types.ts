@@ -24,6 +24,7 @@ export interface CartShopGroup {
   shopName: string | null
   shopSlug: string | null
   shopIsVatRegistered: boolean
+  processingTimeDays?: { min: number; max: number } | null
   items: CartItemDetail[]
   subtotalCents: number
 }

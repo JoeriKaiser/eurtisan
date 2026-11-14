@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
   ArrowRight,
+  Clock,
   Hammer,
   ImageOff,
   Layers,
@@ -337,11 +338,20 @@ function ShopGroup({
     <section className='island-shell rounded-2xl p-4 sm:p-6'>
       {/* Shop header */}
       <div className='mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border-default pb-4'>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           <h2 className='text-base font-semibold text-text-primary'>
             {shop.shopName ?? m.cart_item_unavailable()}
           </h2>
           {shopHasUnavailable && <Badge variant='error'>{m.cart_item_unavailable()}</Badge>}
+          {shop.processingTimeDays && (
+            <span className='inline-flex items-center gap-1 text-xs text-text-secondary'>
+              <Clock size={13} className='text-text-muted' aria-hidden='true' />
+              {m.shop_processing_time({
+                min: shop.processingTimeDays.min,
+                max: shop.processingTimeDays.max,
+              })}
+            </span>
+          )}
         </div>
         <div className='text-right'>
           <p className='text-sm text-text-secondary'>

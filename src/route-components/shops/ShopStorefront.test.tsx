@@ -48,6 +48,8 @@ vi.mock('#/paraglide/messages', () => ({
     shop_link_new_tab: () => 'opens in a new tab',
     shop_member_since: ({ date }: { date: string }) => `On Eurtisan since ${date}`,
     shop_languages_label: () => 'Speaks',
+    product_share: () => 'Share',
+    product_share_copied: () => 'Link copied',
     shop_production_handmade: () => 'Handmade',
     shop_production_vintage: () => 'Vintage',
     shop_production_supplies: () => 'Craft supplies',
@@ -262,6 +264,21 @@ describe('ShopStorefront', () => {
       renderShop(makeShop({ description: null }))
       expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Test Shop')
       expect(screen.queryByText('A test shop description')).toBeNull()
+    })
+
+    it('renders a share button and copies the storefront link', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined)
+      Object.assign(navigator, {
+        clipboard: { writeText: writeTextMock },
+      })
+
+      renderShop(makeShop())
+      const shareButton = screen.getByRole('button', { name: 'Share' })
+      expect(shareButton).toBeDefined()
+
+      fireEvent.click(shareButton)
+      expect(writeTextMock).toHaveBeenCalledWith(window.location.href)
+      expect(await screen.findByRole('button', { name: 'Link copied' })).toBeDefined()
     })
 
     it('discloses a trader declaration from the public shop profile', () => {

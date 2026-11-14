@@ -241,6 +241,7 @@ export async function getProductBySlugQuery(
     .select({
       ...publicProductColumns,
       shopDescription: shop.description,
+      shopAnnouncement: shop.announcement,
       traderStatus: shop.traderStatus,
       categoryId: product.categoryId,
       lowStockThreshold: product.lowStockThreshold,
@@ -332,6 +333,7 @@ export async function getProductBySlugQuery(
     imageUrl: primaryImage?.url ?? null,
     images,
     shopDescription: result.shopDescription,
+    shopAnnouncement: result.shopAnnouncement ?? null,
     traderStatus: result.traderStatus,
     categoryId: result.categoryId,
     lowStockThreshold: result.lowStockThreshold,

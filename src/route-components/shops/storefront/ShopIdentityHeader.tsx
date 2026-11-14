@@ -1,5 +1,5 @@
-import { Flag, Globe, MapPin, Package } from 'lucide-react'
-import { useState } from 'react'
+import { Check, Flag, Globe, MapPin, Package, Share2 } from 'lucide-react'
+import { useRef, useState } from 'react'
 import type { ProductReportReason } from '#/components/product/ReportProductDialog'
 import { ReportShopDialog } from '#/components/shop/ReportShopDialog'
 import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
@@ -38,6 +38,42 @@ export function ShopIdentityHeader({ shop }: ShopIdentityHeaderProps) {
   const [isReported, setIsReported] = useState(false)
   const [reportBusy, setReportBusy] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const shareTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleShare = async () => {
+    if (typeof window === 'undefined') return
+    const shareData = {
+      title: shop.name,
+      text: shop.tagline || shop.description || shop.name,
+      url: window.location.href,
+    }
+
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare(shareData)
+    ) {
+      try {
+        await navigator.share(shareData)
+        return
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(window.location.href)
+        setCopied(true)
+        if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current)
+        shareTimeoutRef.current = setTimeout(() => setCopied(false), 2500)
+      } catch {
+        // Clipboard write failed
+      }
+    }
+  }
 
   const handleReportShop = async (reason: ProductReportReason, details: string | null) => {
     setReportBusy(true)
@@ -55,10 +91,30 @@ export function ShopIdentityHeader({ shop }: ShopIdentityHeaderProps) {
 
   return (
     <header>
-      <p className='island-kicker mb-3'>{m.shop_kicker()}</p>
-      <h1 className='display-title mb-3 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
-        {shop.name}
-      </h1>
+      <div className='flex items-start justify-between gap-4'>
+        <div>
+          <p className='island-kicker mb-3'>{m.shop_kicker()}</p>
+          <h1 className='display-title mb-3 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
+            {shop.name}
+          </h1>
+        </div>
+        <button
+          type='button'
+          onClick={handleShare}
+          aria-label={copied ? m.product_share_copied() : m.product_share()}
+          title={copied ? m.product_share_copied() : m.product_share()}
+          className='flex size-10 flex-shrink-0 items-center justify-center rounded-full border border-border-default bg-surface-default text-text-secondary transition hover:border-border-strong hover:bg-surface-inset hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary'
+        >
+          {copied ? (
+            <Check size={18} className='text-success' aria-hidden='true' />
+          ) : (
+            <Share2 size={18} aria-hidden='true' />
+          )}
+          <span className='sr-only' role='status'>
+            {copied ? m.product_share_copied() : ''}
+          </span>
+        </button>
+      </div>
 
       {shop.tagline && (
         <p className='mb-5 max-w-2xl text-lg leading-relaxed text-text-secondary'>{shop.tagline}</p>

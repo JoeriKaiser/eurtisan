@@ -25,6 +25,7 @@ export interface OrderShopGroup {
   shopOrderId: string
   shopId: string
   shopName: string
+  shopSlug?: string | null
   shippingMethod: 'standard' | 'express' | 'manual'
   shippingRateId: string | null
   shippingCostCents: number

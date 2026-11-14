@@ -92,28 +92,33 @@ export function CategoryPage() {
         </h1>
 
         {/* Breadcrumbs */}
-        {category.breadcrumbs.length > 0 && (
-          <nav aria-label='breadcrumb' className='mb-4'>
-            <ol className='flex flex-wrap items-center gap-2 text-sm text-text-secondary'>
-              {category.breadcrumbs.map((crumb, index) => (
-                <li key={crumb.id} className='flex items-center gap-2'>
-                  {index > 0 && <span>/</span>}
-                  <Link
-                    to='/category/$slug'
-                    params={{ slug: crumb.slug }}
-                    className='hover:text-text-primary hover:underline'
-                  >
-                    {crumb.name}
-                  </Link>
-                </li>
-              ))}
-              <li className='flex items-center gap-2'>
+        <nav aria-label='breadcrumb' className='mb-4'>
+          <ol className='flex flex-wrap items-center gap-2 text-sm text-text-secondary'>
+            <li className='flex items-center gap-2'>
+              <Link to='/category/all' className='hover:text-text-primary hover:underline'>
+                {m.categories_all_title()}
+              </Link>
+            </li>
+            {category.breadcrumbs.map((crumb) => (
+              <li key={crumb.id} className='flex items-center gap-2'>
                 <span>/</span>
-                <span className='font-medium text-text-primary'>{category.name}</span>
+                <Link
+                  to='/category/$slug'
+                  params={{ slug: crumb.slug }}
+                  className='hover:text-text-primary hover:underline'
+                >
+                  {crumb.name}
+                </Link>
               </li>
-            </ol>
-          </nav>
-        )}
+            ))}
+            <li className='flex items-center gap-2'>
+              <span>/</span>
+              <span className='font-medium text-text-primary' aria-current='page'>
+                {category.name}
+              </span>
+            </li>
+          </ol>
+        </nav>
 
         <p className='m-0 max-w-2xl text-base text-text-secondary'>
           {m.category_description({ name: category.name })}
