@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   createPageMeta,
@@ -167,6 +167,15 @@ describe('SEO & Document Head Metadata Contracts', () => {
 
       expect(studioLayoutSource).toContain('createPrivateLayoutMeta')
       expect(studioLayoutSource).toContain('head:')
+    })
+
+    it('serves /robots.txt and /sitemap.xml without static public/robots.txt shadowing', () => {
+      const robotsSource = readFileSync('src/routes/robots[.]txt.ts', 'utf8')
+      const sitemapSource = readFileSync('src/routes/sitemap[.]xml.ts', 'utf8')
+
+      expect(robotsSource).toContain("createFileRoute('/robots.txt')")
+      expect(sitemapSource).toContain("createFileRoute('/sitemap.xml')")
+      expect(existsSync('public/robots.txt')).toBe(false)
     })
   })
 })

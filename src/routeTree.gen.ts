@@ -25,8 +25,10 @@ import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudioRouteRouteImport } from './routes/studio/route'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
@@ -62,10 +64,8 @@ import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoic
 import { Route as OrdersIndexRouteImport } from './routes/orders.index'
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
 import { Route as ReturnsReturnRequestIdRouteImport } from './routes/returns.$returnRequestId'
-import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
 import { Route as SellIndexRouteImport } from './routes/sell/index'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
-import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as AccountOrdersIndexRouteImport } from './routes/account/orders.index'
@@ -206,6 +206,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
@@ -214,6 +219,11 @@ const SearchRoute = SearchRouteImport.update({
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRouteRoute = StudioRouteRouteImport.update({
@@ -391,11 +401,6 @@ const ReturnsReturnRequestIdRoute = ReturnsReturnRequestIdRouteImport.update({
   path: '/returns/$returnRequestId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RobotsTxtRoute = RobotsTxtRouteImport.update({
-  id: '/robots/txt',
-  path: '/robots/txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SellIndexRoute = SellIndexRouteImport.update({
   id: '/sell/',
   path: '/sell/',
@@ -404,11 +409,6 @@ const SellIndexRoute = SellIndexRouteImport.update({
 const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
   id: '/shops/$shopSlug',
   path: '/shops/$shopSlug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapXmlRoute = SitemapXmlRouteImport.update({
-  id: '/sitemap/xml',
-  path: '/sitemap/xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
@@ -750,8 +750,10 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
@@ -782,9 +784,7 @@ export interface FileRoutesByFullPath {
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/returns/$returnRequestId': typeof ReturnsReturnRequestIdRoute
-  '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRouteWithChildren
-  '/sitemap/xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -864,8 +864,10 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
@@ -892,8 +894,6 @@ export interface FileRoutesByTo {
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/returns/$returnRequestId': typeof ReturnsReturnRequestIdRoute
-  '/robots/txt': typeof RobotsTxtRoute
-  '/sitemap/xml': typeof SitemapXmlRoute
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
   '/creator': typeof CreatorIndexRoute
@@ -972,8 +972,10 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
@@ -1004,9 +1006,7 @@ export interface FileRoutesById {
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/returns/$returnRequestId': typeof ReturnsReturnRequestIdRoute
-  '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRouteWithChildren
-  '/sitemap/xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -1092,8 +1092,10 @@ export interface FileRouteTypes {
     | '/orders'
     | '/privacy'
     | '/reset-password'
+    | '/robots.txt'
     | '/search'
     | '/signin'
+    | '/sitemap.xml'
     | '/terms'
     | '/unsubscribe'
     | '/verify-email'
@@ -1124,9 +1126,7 @@ export interface FileRouteTypes {
     | '/invoices/$invoiceId'
     | '/orders/$platformOrderId'
     | '/returns/$returnRequestId'
-    | '/robots/txt'
     | '/shops/$shopSlug'
-    | '/sitemap/xml'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -1206,8 +1206,10 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/privacy'
     | '/reset-password'
+    | '/robots.txt'
     | '/search'
     | '/signin'
+    | '/sitemap.xml'
     | '/terms'
     | '/unsubscribe'
     | '/verify-email'
@@ -1234,8 +1236,6 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/invoices/$invoiceId'
     | '/returns/$returnRequestId'
-    | '/robots/txt'
-    | '/sitemap/xml'
     | '/account'
     | '/admin'
     | '/creator'
@@ -1313,8 +1313,10 @@ export interface FileRouteTypes {
     | '/orders'
     | '/privacy'
     | '/reset-password'
+    | '/robots.txt'
     | '/search'
     | '/signin'
+    | '/sitemap.xml'
     | '/terms'
     | '/unsubscribe'
     | '/verify-email'
@@ -1345,9 +1347,7 @@ export interface FileRouteTypes {
     | '/invoices/$invoiceId'
     | '/orders/$platformOrderId'
     | '/returns/$returnRequestId'
-    | '/robots/txt'
     | '/shops/$shopSlug'
-    | '/sitemap/xml'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -1432,8 +1432,10 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
@@ -1451,9 +1453,7 @@ export interface RootRouteChildren {
   DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
   InvoicesInvoiceIdRoute: typeof InvoicesInvoiceIdRoute
   ReturnsReturnRequestIdRoute: typeof ReturnsReturnRequestIdRoute
-  RobotsTxtRoute: typeof RobotsTxtRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRouteWithChildren
-  SitemapXmlRoute: typeof SitemapXmlRoute
   AccountIndexRoute: typeof AccountIndexRoute
   SellIndexRoute: typeof SellIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -1586,6 +1586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -1598,6 +1605,13 @@ declare module '@tanstack/react-router' {
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -1845,13 +1859,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReturnsReturnRequestIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/robots/txt': {
-      id: '/robots/txt'
-      path: '/robots/txt'
-      fullPath: '/robots/txt'
-      preLoaderRoute: typeof RobotsTxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sell/': {
       id: '/sell/'
       path: '/sell'
@@ -1864,13 +1871,6 @@ declare module '@tanstack/react-router' {
       path: '/shops/$shopSlug'
       fullPath: '/shops/$shopSlug'
       preLoaderRoute: typeof ShopsShopSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap/xml': {
-      id: '/sitemap/xml'
-      path: '/sitemap/xml'
-      fullPath: '/sitemap/xml'
-      preLoaderRoute: typeof SitemapXmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio/': {
@@ -2610,8 +2610,10 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
@@ -2629,9 +2631,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisputesDisputeIdRoute: DisputesDisputeIdRoute,
   InvoicesInvoiceIdRoute: InvoicesInvoiceIdRoute,
   ReturnsReturnRequestIdRoute: ReturnsReturnRequestIdRoute,
-  RobotsTxtRoute: RobotsTxtRoute,
   ShopsShopSlugRoute: ShopsShopSlugRouteWithChildren,
-  SitemapXmlRoute: SitemapXmlRoute,
   AccountIndexRoute: AccountIndexRoute,
   SellIndexRoute: SellIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

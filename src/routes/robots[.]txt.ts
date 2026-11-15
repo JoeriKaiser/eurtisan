@@ -1,16 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/sitemap/xml')({
+export const Route = createFileRoute('/robots.txt')({
   server: {
     handlers: {
       GET: async () => {
-        const { getSitemap } = await import('#/lib/sitemap.server')
-        const xml = await getSitemap()
+        const { buildRobotsTxt } = await import('#/lib/robots-txt.server')
+        const body = buildRobotsTxt()
 
-        return new Response(xml, {
+        return new Response(body, {
           status: 200,
           headers: {
-            'Content-Type': 'application/xml; charset=utf-8',
+            'Content-Type': 'text/plain; charset=utf-8',
             'Cache-Control': 'public, max-age=86400, s-maxage=86400',
           },
         })
