@@ -330,7 +330,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 number picked here. `resolveAvailability` documents why. */}
             <div className='mb-4 flex items-center gap-2 text-sm text-text-secondary'>
               {availability.kind === 'out_of_stock' && (
-                <span className='inline-flex items-center gap-1 text-red-600 dark:text-red-400'>
+                <span className='inline-flex items-center gap-1 text-error'>
                   <PackageX size={14} aria-hidden='true' />
                   {m.product_out_of_stock()}
                 </span>
@@ -442,7 +442,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                   <button
                     type='button'
                     aria-label={m.product_decrease_quantity()}
-                    className='px-3 py-2 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                    className='flex min-h-11 min-w-11 items-center justify-center rounded-l-lg text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
                     disabled={quantity <= 1 || isOutOfStock || isPurchaseUnavailable || isAdding}
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   >
@@ -463,14 +463,14 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                       }
                       setQuantity(Math.max(1, Math.min(product.stockCount, value)))
                     }}
-                    className='w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-text-primary focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+                    className='min-h-11 w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-text-primary focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
                     aria-live='polite'
                     aria-label={m.product_quantity()}
                   />
                   <button
                     type='button'
                     aria-label={m.product_increase_quantity()}
-                    className='px-3 py-2 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                    className='flex min-h-11 min-w-11 items-center justify-center rounded-r-lg text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
                     disabled={
                       quantity >= product.stockCount ||
                       isOutOfStock ||
@@ -515,9 +515,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                   <p className='text-sm font-medium text-success'>{m.cart_add_stock_limit()}</p>
                 )}
                 {addStatus === 'error' && (
-                  <p className='text-sm font-medium text-red-600 dark:text-red-400'>
-                    {m.cart_add_error()}
-                  </p>
+                  <p className='text-sm font-medium text-error'>{m.cart_add_error()}</p>
                 )}
               </div>
             </form>

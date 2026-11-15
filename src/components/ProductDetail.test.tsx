@@ -540,4 +540,21 @@ describe('ProductDetail', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
   })
+
+  it('uses 44px touch targets for quantity steppers and semantic error tokens', () => {
+    render(<ProductDetail product={makeProduct({ stockCount: 0 })} />)
+
+    const decrease = screen.getByRole('button', { name: 'Decrease quantity' })
+    const increase = screen.getByRole('button', { name: 'Increase quantity' })
+    expect(decrease.className).toContain('min-h-11')
+    expect(decrease.className).toContain('min-w-11')
+    expect(increase.className).toContain('min-h-11')
+    expect(increase.className).toContain('min-w-11')
+
+    const outOfStockBadges = screen.getAllByText('Out of stock')
+    expect(outOfStockBadges.some((el) => el.className.includes('text-error'))).toBe(true)
+    for (const el of outOfStockBadges) {
+      expect(el.className).not.toContain('text-red-')
+    }
+  })
 })
