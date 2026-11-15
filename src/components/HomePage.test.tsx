@@ -137,11 +137,11 @@ describe('HomePage', () => {
     expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
     const mobileHeroImage = screen.getByRole('img', {
       name: 'A maker arranging ceramics and textiles in a sunlit workshop',
-    }) as HTMLElement
-    expect(mobileHeroImage.style.backgroundImage).toContain(
+    }) as HTMLImageElement
+    expect(mobileHeroImage.tagName).toBe('IMG')
+    expect(mobileHeroImage.src).toContain(
       '/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp',
     )
-    expect(mobileHeroImage.style.backgroundImage).toContain('/images/hero_artisan_goods.webp')
   })
 
   it('shows singular product count for one product', () => {
@@ -460,5 +460,34 @@ describe('HomePage', () => {
     expect(screen.getAllByText('45')).toHaveLength(2)
     expect(screen.getAllByText('820')).toHaveLength(2)
     expect(screen.getAllByText('12')).toHaveLength(2)
+  })
+
+  it('renders mobile hero image as eager priority img and falls back cleanly on load error', () => {
+    const shops = [
+      makeShop('featured', {
+        name: 'OficinaStudio',
+        slug: 'oficinastudio',
+        image: 's3://eurtisan-uploads/shops/oficinastudio.jpg',
+        productCount: 4,
+      }),
+    ]
+    render(<HomePage categories={[]} products={[]} shops={shops} />)
+
+    const desktopHeroImg = screen.getByAltText('OficinaStudio') as HTMLImageElement
+    expect(desktopHeroImg.getAttribute('fetchpriority')).toBe('high')
+    expect(desktopHeroImg.getAttribute('decoding')).toBe('sync')
+
+    const mobileHeroImg = screen.getByAltText(
+      'A maker arranging ceramics and textiles in a sunlit workshop',
+    ) as HTMLImageElement
+    expect(mobileHeroImg.tagName).toBe('IMG')
+    expect(mobileHeroImg.getAttribute('fetchpriority')).toBe('high')
+    expect(mobileHeroImg.getAttribute('decoding')).toBe('sync')
+
+    fireEvent.error(desktopHeroImg)
+    expect(desktopHeroImg.getAttribute('src')).toBe('/images/hero_artisan_goods.webp')
+    expect(mobileHeroImg.getAttribute('src')).toBe('/images/hero_artisan_goods.webp')
+
+    expect(screen.getByRole('heading', { level: 2, name: 'OficinaStudio' })).toBeDefined()
   })
 })
