@@ -35,6 +35,7 @@ export function CategoriesAllPage() {
                   slug={category.slug}
                   description={category.description}
                   productCount={category.productCount}
+                  headingLevel='h2'
                 />
               </li>
             ))}

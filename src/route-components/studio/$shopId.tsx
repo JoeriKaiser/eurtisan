@@ -10,7 +10,7 @@ interface MetricCardProps {
 
 function MetricCard({ label, value }: MetricCardProps) {
   return (
-    <div className='island-shell rounded-xl p-4'>
+    <div className='rounded-xl border border-border-subtle bg-surface-inset p-4'>
       <p className='mb-1 text-sm text-text-secondary'>{label}</p>
       <p className='text-2xl font-semibold text-text-primary'>{value}</p>
     </div>
@@ -92,9 +92,9 @@ export function ShopDashboard() {
               key={item.to}
               to={item.to}
               params={item.params}
-              className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset'
+              className='flex flex-col gap-3 rounded-xl border border-border-default bg-surface-inset p-5 transition hover:border-border-strong hover:bg-bg-inset'
             >
-              <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
+              <div className='flex size-10 items-center justify-center rounded-full border border-border-subtle bg-surface-default text-text-primary'>
                 <item.icon size={20} aria-hidden='true' />
               </div>
               <div>

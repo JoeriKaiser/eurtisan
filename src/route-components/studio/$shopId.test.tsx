@@ -101,4 +101,11 @@ describe('ShopDashboard', () => {
     expect(taxLink.getAttribute('href')).toBe('/studio/$shopId/settings/tax')
     expect(taxLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
   })
+
+  it('uses flat inset panels instead of nested island shells or raw palette colors', () => {
+    const { container } = render(<ShopDashboard />)
+
+    expect(container.querySelector('.island-shell .island-shell')).toBeNull()
+    expect(container.innerHTML).not.toContain('neutral-')
+  })
 })

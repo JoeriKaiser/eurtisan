@@ -24,10 +24,10 @@ function Account() {
         <div className='grid gap-4 sm:grid-cols-2'>
           <Link
             to='/account/orders'
-            className='island-shell flex items-center gap-4 rounded-xl p-5 transition hover:bg-bg-inset'
+            className='flex items-center gap-4 rounded-xl border border-border-default bg-surface-inset p-5 transition hover:border-border-strong hover:bg-bg-inset'
           >
-            <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
-              <Package size={20} />
+            <div className='flex size-10 items-center justify-center rounded-full border border-border-subtle bg-surface-default text-text-primary'>
+              <Package size={20} aria-hidden='true' />
             </div>
             <div>
               <h2 className='text-base font-semibold text-text-primary'>{m.account_orders()}</h2>
@@ -36,10 +36,10 @@ function Account() {
 
           <Link
             to='/account/settings'
-            className='island-shell flex items-center gap-4 rounded-xl p-5 transition hover:bg-bg-inset'
+            className='flex items-center gap-4 rounded-xl border border-border-default bg-surface-inset p-5 transition hover:border-border-strong hover:bg-bg-inset'
           >
-            <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
-              <Settings size={20} />
+            <div className='flex size-10 items-center justify-center rounded-full border border-border-subtle bg-surface-default text-text-primary'>
+              <Settings size={20} aria-hidden='true' />
             </div>
             <div>
               <h2 className='text-base font-semibold text-text-primary'>{m.account_settings()}</h2>
