@@ -14,10 +14,18 @@ interface CategoryCardProps {
   slug: string
   description?: string | null
   productCount?: number
+  headingLevel?: 'h2' | 'h3'
 }
 
-export default function CategoryCard({ name, slug, description, productCount }: CategoryCardProps) {
+export default function CategoryCard({
+  name,
+  slug,
+  description,
+  productCount,
+  headingLevel = 'h3',
+}: CategoryCardProps) {
   const Icon = getCategoryIcon(name) as LucideIcon
+  const Heading = headingLevel
 
   return (
     <Link
@@ -29,7 +37,7 @@ export default function CategoryCard({ name, slug, description, productCount }: 
         <Icon size={19} strokeWidth={1.5} aria-hidden='true' />
       </div>
       <div className='min-w-0'>
-        <h3 className='text-sm font-semibold text-text-primary'>{name}</h3>
+        <Heading className='text-sm font-semibold text-text-primary'>{name}</Heading>
         {description ? (
           <p className='truncate text-xs text-text-muted'>{description}</p>
         ) : (
