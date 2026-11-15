@@ -2622,5 +2622,10 @@
   "product_lightbox_open": "Skatīt lielāku attēlu",
   "product_lightbox_close": "Aizvērt galeriju",
   "product_lightbox_previous": "Iepriekšējais attēls",
-  "product_lightbox_next": "Nākamais attēls"
+  "product_lightbox_next": "Nākamais attēls",
+  "footer_legal_heading": "Juridiskā informācija",
+  "order_pending_initiation_failed_title": "Neizdevās sākt maksājumu",
+  "order_pending_initiation_failed_held": "Jūsu preces ir rezervētas uz {duration}. Lūdzu, mēģiniet iesniegt maksājumu vēlreiz.",
+  "order_pending_initiation_failed_expired": "Jūsu krājumu rezervācija ir beigusies. Lūdzu, izveidojiet grozu no jauna, lai turpinātu.",
+  "order_pending_items_held": "Preces rezervētas uz {duration}"
 }

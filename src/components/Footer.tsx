@@ -70,7 +70,7 @@ export default function Footer() {
         {/* Column 4: Legal */}
         <div className='flex flex-col gap-3'>
           <h3 className='text-xs font-semibold uppercase tracking-wider text-text-primary'>
-            Legal
+            {m.footer_legal_heading()}
           </h3>
           <ul className='list-none p-0 m-0 flex flex-col gap-2'>
             <li>

@@ -2622,5 +2622,10 @@
   "product_lightbox_open": "Visualizza immagine ingrandita",
   "product_lightbox_close": "Chiudi galleria",
   "product_lightbox_previous": "Immagine precedente",
-  "product_lightbox_next": "Immagine successiva"
+  "product_lightbox_next": "Immagine successiva",
+  "footer_legal_heading": "Note legali",
+  "order_pending_initiation_failed_title": "Impossibile avviare il pagamento",
+  "order_pending_initiation_failed_held": "I tuoi articoli sono riservati per {duration}. Riprova a inviare il pagamento.",
+  "order_pending_initiation_failed_expired": "La prenotazione della disponibilità è scaduta. Ricrea il carrello per continuare.",
+  "order_pending_items_held": "Articoli riservati per {duration}"
 }

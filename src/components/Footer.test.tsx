@@ -23,6 +23,7 @@ vi.mock('#/paraglide/messages', () => ({
     footer_nav_about: () => 'About',
     home_makers_kicker: () => 'For makers',
     footer_nav_sell: () => 'Sell',
+    footer_legal_heading: () => 'Legal',
     footer_legal_privacy: () => 'Privacy Policy',
     footer_legal_terms: () => 'Terms of Service',
     footer_legal_cookies: () => 'Cookie Policy',

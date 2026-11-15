@@ -2615,5 +2615,10 @@
   "product_lightbox_open": "Προβολή μεγαλύτερης εικόνας",
   "product_lightbox_close": "Κλείσιμο συλλογής",
   "product_lightbox_previous": "Προηγούμενη εικόνα",
-  "product_lightbox_next": "Επόμενη εικόνα"
+  "product_lightbox_next": "Επόμενη εικόνα",
+  "footer_legal_heading": "Νομικές πληροφορίες",
+  "order_pending_initiation_failed_title": "Δεν ήταν δυνατή η έναρξη της πληρωμής",
+  "order_pending_initiation_failed_held": "Τα είδη σας δεσμεύονται για {duration}. Παρακαλούμε δοκιμάστε ξανά την πληρωμή.",
+  "order_pending_initiation_failed_expired": "Η κράτηση αποθέματος έληξε. Παρακαλούμε συνθέστε ξανά το καλάθι σας για να συνεχίσετε.",
+  "order_pending_items_held": "Τα είδη δεσμεύονται για {duration}"
 }

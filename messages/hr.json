@@ -2622,5 +2622,10 @@
   "product_lightbox_open": "Prikaži veću sliku",
   "product_lightbox_close": "Zatvori galeriju",
   "product_lightbox_previous": "Prethodna slika",
-  "product_lightbox_next": "Sljedeća slika"
+  "product_lightbox_next": "Sljedeća slika",
+  "footer_legal_heading": "Pravne informacije",
+  "order_pending_initiation_failed_title": "Plaćanje nije moguće pokrenuti",
+  "order_pending_initiation_failed_held": "Vaši su artikli rezervirani još {duration}. Pokušajte ponovno poslati plaćanje.",
+  "order_pending_initiation_failed_expired": "Vaša je rezervacija zaliha istekla. Ponovno sastavite košaricu za nastavak.",
+  "order_pending_items_held": "Artikli rezervirani još {duration}"
 }

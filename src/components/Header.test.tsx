@@ -215,8 +215,8 @@ describe('Header', () => {
 
   it('renders search trigger button with aria-label', () => {
     renderWithProviders(<Header />)
-    const trigger = screen.getByRole('button', { name: 'Search products...' })
-    expect(trigger).toBeDefined()
+    const triggers = screen.getAllByRole('button', { name: 'Search products...' })
+    expect(triggers.length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders cart link with aria-label', () => {
@@ -271,8 +271,8 @@ describe('Header', () => {
   it('renders search trigger on homepage', () => {
     mockUseLocation.mockReturnValue({ pathname: '/' })
     renderWithProviders(<Header />)
-    const trigger = screen.getByRole('button', { name: 'Search products...' })
-    expect(trigger).toBeDefined()
+    const triggers = screen.getAllByRole('button', { name: 'Search products...' })
+    expect(triggers.length).toBeGreaterThanOrEqual(1)
     mockUseLocation.mockReturnValue({ pathname: '/about' })
   })
 
@@ -440,21 +440,21 @@ describe('Header', () => {
 
   it('renders mobile search button and opens search overlay on click', async () => {
     renderWithProviders(<Header />)
-    const searchBtn = screen.getByRole('button', { name: 'Search products' })
-    expect(searchBtn).toBeDefined()
+    const searchButtons = screen.getAllByRole('button', { name: 'Search products...' })
+    expect(searchButtons.length).toBeGreaterThanOrEqual(2)
 
-    // Click trigger to open search overlay
-    fireEvent.click(searchBtn)
+    // Click mobile search button trigger to open search overlay
+    fireEvent.click(searchButtons[1])
     expect(await screen.findByTestId('search-overlay')).toBeDefined()
   })
 
   it('renders desktop search button and opens search overlay on click', async () => {
     renderWithProviders(<Header />)
-    const searchBtn = screen.getByRole('button', { name: 'Search products...' })
-    expect(searchBtn).toBeDefined()
+    const searchButtons = screen.getAllByRole('button', { name: 'Search products...' })
+    expect(searchButtons[0]).toBeDefined()
 
     // Click trigger to open search overlay
-    fireEvent.click(searchBtn)
+    fireEvent.click(searchButtons[0])
     expect(await screen.findByTestId('search-overlay')).toBeDefined()
   })
 

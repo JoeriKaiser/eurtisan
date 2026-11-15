@@ -2615,5 +2615,10 @@
   "product_lightbox_open": "Näytä suurempi kuva",
   "product_lightbox_close": "Sulje galleria",
   "product_lightbox_previous": "Edellinen kuva",
-  "product_lightbox_next": "Seuraava kuva"
+  "product_lightbox_next": "Seuraava kuva",
+  "footer_legal_heading": "Oikeudelliset tiedot",
+  "order_pending_initiation_failed_title": "Maksua ei voitu käynnistää",
+  "order_pending_initiation_failed_held": "Tuotteesi on varattu ajan {duration}. Yritä lähettää maksu uudelleen.",
+  "order_pending_initiation_failed_expired": "Varastovarauksesi on vanhentunut. Kokoa ostoskorisi uudelleen jatkaaksesi.",
+  "order_pending_items_held": "Tuotteet varattu: {duration}"
 }

@@ -2615,5 +2615,10 @@
   "product_lightbox_open": "Bild vergrößert ansehen",
   "product_lightbox_close": "Galerie schließen",
   "product_lightbox_previous": "Vorheriges Bild",
-  "product_lightbox_next": "Nächstes Bild"
+  "product_lightbox_next": "Nächstes Bild",
+  "footer_legal_heading": "Rechtliches",
+  "order_pending_initiation_failed_title": "Zahlung konnte nicht gestartet werden",
+  "order_pending_initiation_failed_held": "Ihre Artikel sind noch für {duration} reserviert. Bitte senden Sie die Zahlung erneut ab.",
+  "order_pending_initiation_failed_expired": "Ihre Bestandsreservierung ist abgelaufen. Bitte stellen Sie Ihren Warenkorb erneut zusammen.",
+  "order_pending_items_held": "Artikel reserviert für {duration}"
 }

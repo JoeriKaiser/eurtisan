@@ -2516,5 +2516,10 @@
   "product_lightbox_open": "e166e105849b",
   "product_lightbox_close": "69e9e2930ad0",
   "product_lightbox_previous": "f0a859a7ecd7",
-  "product_lightbox_next": "a4903f732746"
+  "product_lightbox_next": "a4903f732746",
+  "footer_legal_heading": "4787eaf7c938",
+  "order_pending_initiation_failed_title": "f3415672d3b7",
+  "order_pending_initiation_failed_held": "22a3fb712f9c",
+  "order_pending_initiation_failed_expired": "4a7fbd85da94",
+  "order_pending_items_held": "cf5824bba6bd"
 }

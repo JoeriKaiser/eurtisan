@@ -2629,5 +2629,10 @@
   "product_lightbox_open": "Žiūrėti didesnį vaizdą",
   "product_lightbox_close": "Uždaryti galeriją",
   "product_lightbox_previous": "Ankstesnis vaizdas",
-  "product_lightbox_next": "Kitas vaizdas"
+  "product_lightbox_next": "Kitas vaizdas",
+  "footer_legal_heading": "Teisinė informacija",
+  "order_pending_initiation_failed_title": "Nepavyko pradėti mokėjimo",
+  "order_pending_initiation_failed_held": "Jūsų prekės rezervuotos dar {duration}. Bandykite pateikti mokėjimą dar kartą.",
+  "order_pending_initiation_failed_expired": "Jūsų atsargų rezervacija baigėsi. Norėdami tęsti, iš naujo sudarykite krepšelį.",
+  "order_pending_items_held": "Prekės rezervuotos dar {duration}"
 }

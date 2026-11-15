@@ -23,6 +23,12 @@ vi.mock('#/paraglide/messages', () => ({
     order_success_description: () => 'Thank you for your purchase!',
     order_pending_title: () => 'Confirming payment…',
     order_pending_description: () => "We're waiting for your payment to be confirmed.",
+    order_pending_initiation_failed_title: () => 'Payment could not be started',
+    order_pending_initiation_failed_held: ({ duration }: { duration: string }) =>
+      `Your items are held for ${duration}. Please try submitting payment again.`,
+    order_pending_initiation_failed_expired: () =>
+      'Your inventory reservation has expired. Please rebuild your cart to continue.',
+    order_pending_items_held: ({ duration }: { duration: string }) => `Items held for ${duration}`,
     order_failed_title: () => 'Payment failed',
     order_failed_description: () => 'Your payment could not be processed.',
     order_failed_expired_title: () => 'Payment expired',

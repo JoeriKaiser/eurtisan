@@ -2629,5 +2629,10 @@
   "product_lightbox_open": "Zobrazit větší obrázek",
   "product_lightbox_close": "Zavřít galerii",
   "product_lightbox_previous": "Předchozí obrázek",
-  "product_lightbox_next": "Další obrázek"
+  "product_lightbox_next": "Další obrázek",
+  "footer_legal_heading": "Právní informace",
+  "order_pending_initiation_failed_title": "Platbu se nepodařilo spustit",
+  "order_pending_initiation_failed_held": "Vaše položky jsou rezervovány po dobu {duration}. Zkuste platbu odeslat znovu.",
+  "order_pending_initiation_failed_expired": "Rezervace zásob vypršela. Pokračujte prosím opětovným sestavením košíku.",
+  "order_pending_items_held": "Položky rezervovány po dobu {duration}"
 }
