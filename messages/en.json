@@ -2612,5 +2612,14 @@
   "home_charter_item_4_desc": "We collect only what is needed to deliver your order. No third-party ad tracking.",
   "product_share": "Share listing",
   "product_share_copied": "Link copied",
-  "product_dispatch_calendar_estimate": "Estimated dispatch: {window}"
+  "product_dispatch_calendar_estimate": "Estimated dispatch: {window}",
+  "product_lightbox_open": "View larger image",
+  "product_lightbox_close": "Close gallery",
+  "product_lightbox_previous": "Previous image",
+  "product_lightbox_next": "Next image",
+  "footer_legal_heading": "Legal",
+  "order_pending_initiation_failed_title": "Payment could not be started",
+  "order_pending_initiation_failed_held": "Your items are held for {duration}. Please try submitting payment again.",
+  "order_pending_initiation_failed_expired": "Your inventory reservation has expired. Please rebuild your cart to continue.",
+  "order_pending_items_held": "Items held for {duration}"
 }

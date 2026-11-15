@@ -2611,5 +2611,14 @@
   "home_charter_item_4_desc": "Wir erfassen nur Daten, die für Ihre Bestellung nötig sind. Kein Werbetracking von Drittanbietern.",
   "product_share": "Angebot teilen",
   "product_share_copied": "Link kopiert",
-  "product_dispatch_calendar_estimate": "Voraussichtlicher Versand: {window}"
+  "product_dispatch_calendar_estimate": "Voraussichtlicher Versand: {window}",
+  "product_lightbox_open": "Bild vergrößert ansehen",
+  "product_lightbox_close": "Galerie schließen",
+  "product_lightbox_previous": "Vorheriges Bild",
+  "product_lightbox_next": "Nächstes Bild",
+  "footer_legal_heading": "Rechtliches",
+  "order_pending_initiation_failed_title": "Zahlung konnte nicht gestartet werden",
+  "order_pending_initiation_failed_held": "Ihre Artikel sind noch für {duration} reserviert. Bitte senden Sie die Zahlung erneut ab.",
+  "order_pending_initiation_failed_expired": "Ihre Bestandsreservierung ist abgelaufen. Bitte stellen Sie Ihren Warenkorb erneut zusammen.",
+  "order_pending_items_held": "Artikel reserviert für {duration}"
 }

@@ -2625,5 +2625,14 @@
   "home_charter_item_4_desc": "Zbieramy tylko dane niezbędne do realizacji zamówienia. Brak śledzenia reklamowego firm trzecich.",
   "product_share": "Udostępnij ofertę",
   "product_share_copied": "Link skopiowany",
-  "product_dispatch_calendar_estimate": "Przewidywana wysyłka: {window}"
+  "product_dispatch_calendar_estimate": "Przewidywana wysyłka: {window}",
+  "product_lightbox_open": "Zobacz większe zdjęcie",
+  "product_lightbox_close": "Zamknij galerię",
+  "product_lightbox_previous": "Poprzednie zdjęcie",
+  "product_lightbox_next": "Następne zdjęcie",
+  "footer_legal_heading": "Informacje prawne",
+  "order_pending_initiation_failed_title": "Nie udało się rozpocząć płatności",
+  "order_pending_initiation_failed_held": "Twoje produkty są zarezerwowane przez {duration}. Spróbuj ponownie przesłać płatność.",
+  "order_pending_initiation_failed_expired": "Rezerwacja zapasów wygasła. Odtwórz koszyk, aby kontynuować.",
+  "order_pending_items_held": "Produkty zarezerwowane przez {duration}"
 }

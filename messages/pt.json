@@ -2618,5 +2618,14 @@
   "home_charter_item_4_desc": "Recolhemos apenas o estritamente necessário para entregar a sua encomenda. Sem rastreadores de terceiros.",
   "product_share": "Partilhar anúncio",
   "product_share_copied": "Ligação copiada",
-  "product_dispatch_calendar_estimate": "Envio previsto: {window}"
+  "product_dispatch_calendar_estimate": "Envio previsto: {window}",
+  "product_lightbox_open": "Ver imagem maior",
+  "product_lightbox_close": "Fechar galeria",
+  "product_lightbox_previous": "Imagem anterior",
+  "product_lightbox_next": "Imagem seguinte",
+  "footer_legal_heading": "Informação legal",
+  "order_pending_initiation_failed_title": "Não foi possível iniciar o pagamento",
+  "order_pending_initiation_failed_held": "Os seus artigos estão reservados por {duration}. Tente submeter o pagamento novamente.",
+  "order_pending_initiation_failed_expired": "A sua reserva de stock expirou. Volte a montar o carrinho para continuar.",
+  "order_pending_items_held": "Artigos reservados por {duration}"
 }

@@ -60,6 +60,7 @@
   "about_trust_text": "547907762014",
   "nav_main": "eb355944b92d",
   "nav_home": "3a78695388b3",
+  "nav_back_to_top": "b05d95c62372",
   "nav_about": "4efca0d10c5f",
   "nav_categories": "b8b1d894c683",
   "nav_docs": "7af023c43013",
@@ -2511,5 +2512,14 @@
   "home_charter_item_4_desc": "699e40d4a2d0",
   "product_share": "3808205722bc",
   "product_share_copied": "d12860c21e78",
-  "product_dispatch_calendar_estimate": "5896c2057c3e"
+  "product_dispatch_calendar_estimate": "5896c2057c3e",
+  "product_lightbox_open": "e166e105849b",
+  "product_lightbox_close": "69e9e2930ad0",
+  "product_lightbox_previous": "f0a859a7ecd7",
+  "product_lightbox_next": "a4903f732746",
+  "footer_legal_heading": "4787eaf7c938",
+  "order_pending_initiation_failed_title": "f3415672d3b7",
+  "order_pending_initiation_failed_held": "22a3fb712f9c",
+  "order_pending_initiation_failed_expired": "4a7fbd85da94",
+  "order_pending_items_held": "cf5824bba6bd"
 }

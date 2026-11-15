@@ -2611,5 +2611,14 @@
   "home_charter_item_4_desc": "Csak a megrendelés teljesítéséhez szükséges adatokat gyűjtjük. Nincs harmadik féltől származó reklámkövetés.",
   "product_share": "Hirdetés megosztása",
   "product_share_copied": "Hivatkozás másolva",
-  "product_dispatch_calendar_estimate": "Becsült feladás: {window}"
+  "product_dispatch_calendar_estimate": "Becsült feladás: {window}",
+  "product_lightbox_open": "Nagyobb kép megtekintése",
+  "product_lightbox_close": "Galéria bezárása",
+  "product_lightbox_previous": "Előző kép",
+  "product_lightbox_next": "Következő kép",
+  "footer_legal_heading": "Jogi tudnivalók",
+  "order_pending_initiation_failed_title": "A fizetést nem sikerült elindítani",
+  "order_pending_initiation_failed_held": "A termékeit még {duration} időtartamra fenntartjuk. Kérjük, próbálja újra elküldeni a fizetést.",
+  "order_pending_initiation_failed_expired": "A készletfoglalása lejárt. A folytatáshoz állítsa össze újra a kosarát.",
+  "order_pending_items_held": "Termékek fenntartva: {duration}"
 }

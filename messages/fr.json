@@ -2612,5 +2612,14 @@
   "home_charter_item_4_desc": "Nous ne collectons que les données nécessaires à votre commande. Aucun traceur publicitaire tiers.",
   "product_share": "Partager l'annonce",
   "product_share_copied": "Lien copié",
-  "product_dispatch_calendar_estimate": "Expédition estimée : {window}"
+  "product_dispatch_calendar_estimate": "Expédition estimée : {window}",
+  "product_lightbox_open": "Voir l'image en grand",
+  "product_lightbox_close": "Fermer la galerie",
+  "product_lightbox_previous": "Image précédente",
+  "product_lightbox_next": "Image suivante",
+  "footer_legal_heading": "Mentions légales",
+  "order_pending_initiation_failed_title": "Le paiement n'a pas pu être lancé",
+  "order_pending_initiation_failed_held": "Vos articles sont réservés pendant {duration}. Veuillez relancer le paiement.",
+  "order_pending_initiation_failed_expired": "Votre réservation de stock a expiré. Veuillez reconstituer votre panier pour continuer.",
+  "order_pending_items_held": "Articles réservés pendant {duration}"
 }

@@ -2611,5 +2611,14 @@
   "home_charter_item_4_desc": "Vi indsamler kun det nødvendige for at levere din ordre. Ingen tredjepartssporing.",
   "product_share": "Del opslag",
   "product_share_copied": "Link kopieret",
-  "product_dispatch_calendar_estimate": "Forventet afsendelse: {window}"
+  "product_dispatch_calendar_estimate": "Forventet afsendelse: {window}",
+  "product_lightbox_open": "Se større billede",
+  "product_lightbox_close": "Luk galleri",
+  "product_lightbox_previous": "Forrige billede",
+  "product_lightbox_next": "Næste billede",
+  "footer_legal_heading": "Juridisk",
+  "order_pending_initiation_failed_title": "Betalingen kunne ikke startes",
+  "order_pending_initiation_failed_held": "Dine varer er reserveret i {duration}. Prøv venligst at gennemføre betalingen igen.",
+  "order_pending_initiation_failed_expired": "Din lagerreservation er udløbet. Genopbyg venligst din kurv for at fortsætte.",
+  "order_pending_items_held": "Varer reserveret i {duration}"
 }

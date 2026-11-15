@@ -2611,5 +2611,14 @@
   "home_charter_item_4_desc": "Kogume ainult tellimuse täitmiseks vajalikke andmeid. Puudub kolmandate osapoolte reklaamjälgimine.",
   "product_share": "Jaga kuulutust",
   "product_share_copied": "Link kopeeritud",
-  "product_dispatch_calendar_estimate": "Eeldatav saatmine: {window}"
+  "product_dispatch_calendar_estimate": "Eeldatav saatmine: {window}",
+  "product_lightbox_open": "Vaata suuremat pilti",
+  "product_lightbox_close": "Sulge galerii",
+  "product_lightbox_previous": "Eelmine pilt",
+  "product_lightbox_next": "Järgmine pilt",
+  "footer_legal_heading": "Õigusteave",
+  "order_pending_initiation_failed_title": "Makset ei õnnestunud alustada",
+  "order_pending_initiation_failed_held": "Teie kaubad on broneeritud {duration}. Palun proovige makse uuesti esitada.",
+  "order_pending_initiation_failed_expired": "Teie laobroneering on aegunud. Jätkamiseks koostage ostukorv uuesti.",
+  "order_pending_items_held": "Kaubad on broneeritud {duration}"
 }

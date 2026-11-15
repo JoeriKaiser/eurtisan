@@ -2632,5 +2632,14 @@
   "home_charter_item_4_desc": "Ní bhailímid ach an méid a theastaíonn chun d'ordú a sheachadadh. Gan rianú fógraíochta tríú páirtí.",
   "product_share": "Roinn liostú",
   "product_share_copied": "Nasc cóipeáilte",
-  "product_dispatch_calendar_estimate": "Seoladh measta: {window}"
+  "product_dispatch_calendar_estimate": "Seoladh measta: {window}",
+  "product_lightbox_open": "Amharc ar íomhá níos mó",
+  "product_lightbox_close": "Dún an gailearaí",
+  "product_lightbox_previous": "An íomhá roimhe seo",
+  "product_lightbox_next": "An chéad íomhá eile",
+  "footer_legal_heading": "Dlíthiúil",
+  "order_pending_initiation_failed_title": "Níorbh fhéidir an íocaíocht a thosú",
+  "order_pending_initiation_failed_held": "Coimeádtar do chuid earraí ar feadh {duration}. Bain triail as an íocaíocht a chur ar aghaidh arís.",
+  "order_pending_initiation_failed_expired": "Tá do chur in áirithe stoic imithe in éag. Athchóirigh do chiseán chun leanúint ar aghaidh.",
+  "order_pending_items_held": "Earraí coimeádta ar feadh {duration}"
 }

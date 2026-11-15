@@ -2618,5 +2618,14 @@
   "home_charter_item_4_desc": "Solo recopilamos lo necesario para su pedido. Sin rastreadores publicitarios de terceros.",
   "product_share": "Compartir anuncio",
   "product_share_copied": "Enlace copiado",
-  "product_dispatch_calendar_estimate": "Envío estimado: {window}"
+  "product_dispatch_calendar_estimate": "Envío estimado: {window}",
+  "product_lightbox_open": "Ver imagen más grande",
+  "product_lightbox_close": "Cerrar galería",
+  "product_lightbox_previous": "Imagen anterior",
+  "product_lightbox_next": "Siguiente imagen",
+  "footer_legal_heading": "Legal",
+  "order_pending_initiation_failed_title": "No se pudo iniciar el pago",
+  "order_pending_initiation_failed_held": "Tus artículos están reservados durante {duration}. Intenta enviar el pago de nuevo.",
+  "order_pending_initiation_failed_expired": "Tu reserva de inventario ha caducado. Vuelve a crear tu carrito para continuar.",
+  "order_pending_items_held": "Artículos reservados durante {duration}"
 }

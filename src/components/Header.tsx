@@ -154,7 +154,7 @@ export default function Header() {
               setSearchOverlayOpen(true)
             }}
             className='inline-flex items-center rounded-lg p-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset md:hidden outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 flex-shrink-0'
-            aria-label='Search products'
+            aria-label={m.search_header_placeholder()}
           >
             <Search size={18} aria-hidden='true' />
           </button>

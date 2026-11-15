@@ -1,9 +1,11 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, MapPin, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
+
+const HERO_FALLBACK_IMAGE = '/images/hero_artisan_goods.webp'
 
 interface FeaturedMakerShop {
   id: string
@@ -59,6 +61,7 @@ export function HomeHeroSection({
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchError, setSearchError] = useState(false)
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null)
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,7 +113,33 @@ export function HomeHeroSection({
   const featuredShop = shops.find((s) => s.image !== null && s.productCount > 0) ?? shops[0]
   const featuredImageSrc = featuredShop?.image
     ? getImageUrl(featuredShop.image, { width: 960, format: 'webp' })
-    : '/images/hero_artisan_goods.webp'
+    : HERO_FALLBACK_IMAGE
+  const resolvedHeroImageSrc =
+    featuredImageSrc !== HERO_FALLBACK_IMAGE && failedImageSrc === featuredImageSrc
+      ? HERO_FALLBACK_IMAGE
+      : featuredImageSrc
+
+  const handleHeroImageError = useCallback(() => {
+    if (featuredImageSrc !== HERO_FALLBACK_IMAGE) {
+      setFailedImageSrc(featuredImageSrc)
+    }
+  }, [featuredImageSrc])
+
+  // Synchronize failures that happen during SSR before hydration attaches onError.
+  const heroImageRef = useCallback(
+    (node: HTMLImageElement | null) => {
+      if (
+        node &&
+        node.complete &&
+        node.naturalWidth === 0 &&
+        featuredImageSrc !== HERO_FALLBACK_IMAGE
+      ) {
+        setFailedImageSrc(featuredImageSrc)
+      }
+    },
+    [featuredImageSrc],
+  )
+
   const bio = featuredShop?.tagline ?? featuredShop?.description
   const countryName = getCountryName(featuredShop?.country)
   return (
@@ -125,20 +154,27 @@ export function HomeHeroSection({
                 params={{ shopSlug: featuredShop.slug }}
                 className='block no-underline rounded-xl overflow-hidden border border-border-subtle shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
               >
-                <div
-                  role='img'
-                  aria-label={m.home_hero_image_alt()}
-                  className='aspect-video w-full bg-cover bg-center sm:aspect-[5/4]'
-                  style={{
-                    backgroundImage: `url("${featuredImageSrc}"), url("/images/hero_artisan_goods.webp")`,
-                  }}
+                <img
+                  ref={heroImageRef}
+                  src={resolvedHeroImageSrc}
+                  alt={m.home_hero_image_alt()}
+                  loading='eager'
+                  decoding='sync'
+                  fetchPriority='high'
+                  onError={handleHeroImageError}
+                  className='aspect-video w-full object-cover sm:aspect-[5/4]'
                 />
               </Link>
             ) : (
               <div className='rounded-xl overflow-hidden border border-border-subtle shadow-xs'>
                 <img
-                  src={featuredImageSrc}
+                  ref={heroImageRef}
+                  src={resolvedHeroImageSrc}
                   alt={m.home_hero_image_alt()}
+                  loading='eager'
+                  decoding='sync'
+                  fetchPriority='high'
+                  onError={handleHeroImageError}
                   className='aspect-video w-full object-cover sm:aspect-[5/4]'
                 />
               </div>
@@ -228,12 +264,14 @@ export function HomeHeroSection({
               <div className='w-full max-w-md rounded-2xl border border-border-subtle bg-surface-default overflow-hidden shadow-xs'>
                 <div className='aspect-[16/10] w-full overflow-hidden bg-surface-inset'>
                   <img
-                    src={featuredImageSrc}
+                    ref={heroImageRef}
+                    src={resolvedHeroImageSrc}
                     alt={featuredShop.name}
+                    loading='eager'
+                    decoding='sync'
+                    fetchPriority='high'
                     className='h-full w-full object-cover transition-transform duration-500 ease-out hover:scale-[1.02]'
-                    onError={({ currentTarget }) => {
-                      currentTarget.style.display = 'none'
-                    }}
+                    onError={handleHeroImageError}
                   />
                 </div>
 
@@ -251,9 +289,9 @@ export function HomeHeroSection({
                   </div>
 
                   <div className='flex items-baseline justify-between gap-2'>
-                    <h3 className='display-title text-xl font-bold text-text-primary'>
+                    <h2 className='display-title text-xl font-bold text-text-primary'>
                       {featuredShop.name}
-                    </h3>
+                    </h2>
                     <span className='text-xs font-medium text-text-secondary shrink-0'>
                       {featuredShop.productCount === 1
                         ? m.home_hero_featured_maker_product_single()

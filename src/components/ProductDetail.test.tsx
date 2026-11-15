@@ -58,6 +58,10 @@ vi.mock('#/paraglide/messages', () => ({
     product_gallery_label: () => 'Product images',
     product_gallery_image: ({ index, total }: { index: string; total: string }) =>
       `Image ${index} of ${total}`,
+    product_lightbox_open: () => 'View larger image',
+    product_lightbox_close: () => 'Close gallery',
+    product_lightbox_previous: () => 'Previous image',
+    product_lightbox_next: () => 'Next image',
     product_uncategorized: () => 'Uncategorized',
     product_out_of_stock: () => 'Out of stock',
     product_in_stock: ({ count }: { count: number }) => `${count} in stock`,
@@ -501,5 +505,39 @@ describe('ProductDetail', () => {
     )
     expect(screen.getByText(/Usually dispatched in 2–5 business days/)).toBeDefined()
     expect(screen.getByText(/Estimated dispatch:/)).toBeDefined()
+  })
+
+  it('opens image lightbox and cycles multi-photo galleries with buttons and arrow keys', async () => {
+    const product = makeProduct({
+      images: [
+        { id: 'img-1', url: 'https://example.com/one.jpg', altText: 'Front angle', sortOrder: 0 },
+        { id: 'img-2', url: 'https://example.com/two.jpg', altText: 'Glaze detail', sortOrder: 1 },
+        { id: 'img-3', url: 'https://example.com/three.jpg', altText: 'Maker stamp', sortOrder: 2 },
+      ],
+    })
+
+    const { container } = render(<ProductDetail product={product} />)
+    fireEvent.click(screen.getByRole('button', { name: 'View larger image' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toBeDefined()
+    expect(screen.getByText('Image 1 of 3')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next image' }))
+    expect(screen.getByText('Image 2 of 3')).toBeDefined()
+
+    fireEvent.keyDown(dialog, { key: 'ArrowLeft' })
+    expect(screen.getByText('Image 1 of 3')).toBeDefined()
+
+    fireEvent.keyDown(dialog, { key: 'ArrowLeft' })
+    expect(screen.getByText('Image 3 of 3')).toBeDefined()
+
+    const results = await axe(container)
+    expect(results.violations).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close gallery' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
   })
 })

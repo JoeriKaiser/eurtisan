@@ -2625,5 +2625,14 @@
   "home_charter_item_4_desc": "Zbierame iba údaje potrebné na doručenie objednávky. Žiadne reklamné sledovanie tretích strán.",
   "product_share": "Zdieľať ponuku",
   "product_share_copied": "Odkaz skopírovaný",
-  "product_dispatch_calendar_estimate": "Odhadované odoslanie: {window}"
+  "product_dispatch_calendar_estimate": "Odhadované odoslanie: {window}",
+  "product_lightbox_open": "Zobraziť väčší obrázok",
+  "product_lightbox_close": "Zavrieť galériu",
+  "product_lightbox_previous": "Predchádzajúci obrázok",
+  "product_lightbox_next": "Ďalší obrázok",
+  "footer_legal_heading": "Právne informácie",
+  "order_pending_initiation_failed_title": "Platbu sa nepodarilo spustiť",
+  "order_pending_initiation_failed_held": "Vaše položky sú rezervované po dobu {duration}. Skúste platbu odoslať znova.",
+  "order_pending_initiation_failed_expired": "Vaša rezervácia zásob vypršala. Pre pokračovanie prosím znova zostavte košík.",
+  "order_pending_items_held": "Položky rezervované po dobu {duration}"
 }

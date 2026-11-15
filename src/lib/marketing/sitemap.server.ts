@@ -106,13 +106,20 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
 
   // === Active shops ===
 
+  const publicShopCondition = and(eq(shop.status, 'active'), eq(shop.isSuspended, false))
+  const publicProductCondition = and(
+    eq(product.status, 'published'),
+    eq(product.isActive, true),
+    publicShopCondition,
+  )
+
   const activeShops = await db
     .select({
       slug: shop.slug,
       updatedAt: shop.updatedAt,
     })
     .from(shop)
-    .where(eq(shop.isSuspended, false))
+    .where(publicShopCondition)
 
   for (const s of activeShops) {
     entries.push({
@@ -123,7 +130,7 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
     })
   }
 
-  // === Active products from non-suspended shops ===
+  // === Active products from non-suspended active shops ===
 
   const activeProducts = await db
     .select({
@@ -133,9 +140,7 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
     })
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(
-      and(eq(product.status, 'published'), eq(product.isActive, true), eq(shop.isSuspended, false)),
-    )
+    .where(publicProductCondition)
 
   for (const p of activeProducts) {
     entries.push({
@@ -148,7 +153,7 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
 
   // === Categories (only those that have active products) ===
 
-  // We fetch categories that have at least one active product from a non-suspended shop
+  // We fetch categories that have at least one active product from a non-suspended active shop
   const activeCategories = await db
     .selectDistinct({
       slug: categories.slug,
@@ -156,9 +161,7 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
     .from(categories)
     .innerJoin(product, eq(product.categoryId, categories.id))
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(
-      and(eq(product.status, 'published'), eq(product.isActive, true), eq(shop.isSuspended, false)),
-    )
+    .where(publicProductCondition)
 
   for (const c of activeCategories) {
     entries.push({

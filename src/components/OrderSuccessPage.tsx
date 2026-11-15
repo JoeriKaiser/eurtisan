@@ -123,12 +123,14 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                 <AlertCircle size={32} aria-hidden='true' />
               </div>
               <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
-                Payment could not be started
+                {m.order_pending_initiation_failed_title()}
               </h1>
               <p className='text-text-secondary'>
                 {remainingSeconds > 0
-                  ? `Your items are held for ${formatRemainingTime(remainingSeconds)}. Please try submitting payment again.`
-                  : 'Your inventory reservation has expired. Please rebuild your cart to continue.'}
+                  ? m.order_pending_initiation_failed_held({
+                      duration: formatRemainingTime(remainingSeconds),
+                    })
+                  : m.order_pending_initiation_failed_expired()}
               </p>
             </>
           )}
@@ -145,7 +147,7 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
               {remainingSeconds > 0 && (
                 <p className='mt-2 inline-flex items-center gap-1.5 rounded-full bg-surface-inset px-3 py-1 text-xs font-medium text-text-secondary'>
                   <Clock size={14} aria-hidden='true' />
-                  Items held for {formatRemainingTime(remainingSeconds)}
+                  {m.order_pending_items_held({ duration: formatRemainingTime(remainingSeconds) })}
                 </p>
               )}
             </>

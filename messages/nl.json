@@ -2612,5 +2612,14 @@
   "home_charter_item_4_desc": "We verzamelen enkel wat nodig is voor uw bestelling. Geen advertentietrackers van derden.",
   "product_share": "Deel advertentie",
   "product_share_copied": "Link gekopieerd",
-  "product_dispatch_calendar_estimate": "Verwachte verzending: {window}"
+  "product_dispatch_calendar_estimate": "Verwachte verzending: {window}",
+  "product_lightbox_open": "Grotere afbeelding bekijken",
+  "product_lightbox_close": "Galerij sluiten",
+  "product_lightbox_previous": "Vorige afbeelding",
+  "product_lightbox_next": "Volgende afbeelding",
+  "footer_legal_heading": "Juridisch",
+  "order_pending_initiation_failed_title": "Betaling kon niet worden gestart",
+  "order_pending_initiation_failed_held": "Je artikelen zijn gereserveerd voor {duration}. Probeer de betaling opnieuw te verzenden.",
+  "order_pending_initiation_failed_expired": "Je voorraadreservering is verlopen. Stel je winkelwagen opnieuw samen om verder te gaan.",
+  "order_pending_items_held": "Artikelen gereserveerd voor {duration}"
 }

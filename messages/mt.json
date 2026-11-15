@@ -2632,5 +2632,14 @@
   "home_charter_item_4_desc": "Niġbru biss dak li hu meħtieġ biex titwassal l-ordni tiegħek. L-ebda traċċar ta' reklami minn partijiet terzi.",
   "product_share": "Aqsam il-prodott",
   "product_share_copied": "Link ikkupjat",
-  "product_dispatch_calendar_estimate": "Dispaċċ stmat: {window}"
+  "product_dispatch_calendar_estimate": "Dispaċċ stmat: {window}",
+  "product_lightbox_open": "Ara stampa akbar",
+  "product_lightbox_close": "Agħlaq il-gallerija",
+  "product_lightbox_previous": "Stampa preċedenti",
+  "product_lightbox_next": "Stampa li jmiss",
+  "footer_legal_heading": "Informazzjoni legali",
+  "order_pending_initiation_failed_title": "Ma kienx possibbli li jinbeda l-ħlas",
+  "order_pending_initiation_failed_held": "L-oġġetti tiegħek huma miżmuma għal {duration}. Jekk jogħġbok erġa' pprova ibgħat il-ħlas.",
+  "order_pending_initiation_failed_expired": "Ir-riżerva tal-inventarju tiegħek skadiet. Jekk jogħġbok erġa' ibni l-karrettun tiegħek biex tkompli.",
+  "order_pending_items_held": "Oġġetti miżmuma għal {duration}"
 }

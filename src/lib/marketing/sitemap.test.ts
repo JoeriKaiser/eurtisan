@@ -248,6 +248,44 @@ describe('generateSitemapEntries', () => {
 
     expect(productUrl).toBeUndefined()
   })
+
+  it('excludes draft and pending_review shops and their products', async () => {
+    const shopOwner = await createUser({ id: 'user-nonactive-shop-owner' })
+    const draftShop = await createShop(shopOwner, {
+      id: 'shop-draft-sitemap',
+      name: 'Draft Shop',
+      slug: 'draft-shop-sitemap',
+      status: 'draft',
+      isSuspended: false,
+    })
+    const pendingShop = await createShop(shopOwner, {
+      id: 'shop-pending-sitemap',
+      name: 'Pending Shop',
+      slug: 'pending-shop-sitemap',
+      status: 'pending_review',
+      isSuspended: false,
+    })
+
+    await createProduct(draftShop, {
+      id: 'product-in-draft-shop',
+      name: 'Draft Shop Product',
+      slug: 'product-in-draft-shop',
+      isActive: true,
+    })
+    await createProduct(pendingShop, {
+      id: 'product-in-pending-shop',
+      name: 'Pending Shop Product',
+      slug: 'product-in-pending-shop',
+      isActive: true,
+    })
+
+    const entries = await generateSitemapEntries()
+
+    expect(entries.find((e) => e.loc.includes('/shops/draft-shop-sitemap'))).toBeUndefined()
+    expect(entries.find((e) => e.loc.includes('/shops/pending-shop-sitemap'))).toBeUndefined()
+    expect(entries.find((e) => e.loc.includes('products/product-in-draft-shop'))).toBeUndefined()
+    expect(entries.find((e) => e.loc.includes('products/product-in-pending-shop'))).toBeUndefined()
+  })
 })
 
 describe('generateSitemap', () => {
