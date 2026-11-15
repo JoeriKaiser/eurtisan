@@ -3,6 +3,7 @@ import {
   Check,
   ImageOff,
   Loader2,
+  Maximize2,
   Minus,
   PackageCheck,
   PackageX,
@@ -15,6 +16,7 @@ import {
 import { lazy, Suspense, useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { MoreFromShop } from '#/components/product/MoreFromShop'
+import { ProductImageLightbox } from '#/components/product/ProductImageLightbox'
 import type { ProductReportReason } from '#/components/product/ReportProductDialog'
 import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
@@ -49,6 +51,7 @@ type AddStatus = 'idle' | 'success' | 'error' | 'capped'
 
 export default function ProductDetail({ product, moreFromShop = [] }: ProductDetailProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
   const [addStatus, setAddStatus] = useState<AddStatus>('idle')
@@ -166,16 +169,31 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
             }}
           >
             {selectedImage ? (
-              <ResponsiveImage
-                src={selectedImage.url}
-                alt={selectedImage.altText ?? product.name}
-                loading='eager'
-                srcset={selectedImage.srcset}
-                fetchPriority='high'
-                sizes='(max-width: 768px) calc(100vw - 32px), 60vw'
-                className='h-full w-full'
-                imgClassName='h-full w-full object-cover'
-              />
+              <>
+                <ResponsiveImage
+                  src={selectedImage.url}
+                  alt={selectedImage.altText ?? product.name}
+                  loading='eager'
+                  srcset={selectedImage.srcset}
+                  fetchPriority='high'
+                  sizes='(max-width: 768px) calc(100vw - 32px), 60vw'
+                  className='h-full w-full'
+                  imgClassName='h-full w-full object-cover'
+                />
+                <button
+                  type='button'
+                  onClick={() => setIsLightboxOpen(true)}
+                  aria-label={m.product_lightbox_open()}
+                  className='group absolute inset-0 cursor-zoom-in focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset'
+                >
+                  <span
+                    aria-hidden='true'
+                    className='pointer-events-none absolute bottom-3 right-3 inline-flex size-9 items-center justify-center rounded-full border border-border-default bg-surface-default/90 text-text-primary shadow-sm backdrop-blur-xs transition-transform group-hover:scale-105'
+                  >
+                    <Maximize2 size={16} />
+                  </span>
+                </button>
+              </>
             ) : (
               <div className='flex h-full w-full flex-col items-center justify-center gap-2 text-text-secondary'>
                 <ImageOff size={48} strokeWidth={1.5} aria-hidden='true' />
@@ -184,7 +202,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
             )}
 
             {isOutOfStock && (
-              <div className='absolute inset-0 flex items-center justify-center bg-scrim-image-subtle backdrop-blur-[1px]'>
+              <div className='pointer-events-none absolute inset-0 flex items-center justify-center bg-scrim-image-subtle backdrop-blur-[1px]'>
                 <span className='rounded-full bg-surface-default px-4 py-2 text-sm font-semibold text-text-primary shadow-sm'>
                   <PackageX
                     size={16}
@@ -519,6 +537,17 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
       <div className='mt-8' id='product-reviews'>
         <ProductReviews productId={product.id} />
       </div>
+
+      {images.length > 0 && (
+        <ProductImageLightbox
+          open={isLightboxOpen}
+          onOpenChange={setIsLightboxOpen}
+          images={images}
+          selectedIndex={selectedImageIndex}
+          onSelectIndex={setSelectedImageIndex}
+          productName={product.name}
+        />
+      )}
 
       {isReportOpen && (
         <Suspense fallback={null}>

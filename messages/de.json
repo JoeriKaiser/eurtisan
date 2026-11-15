@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Wir erfassen nur Daten, die für Ihre Bestellung nötig sind. Kein Werbetracking von Drittanbietern.",
   "product_share": "Angebot teilen",
   "product_share_copied": "Link kopiert",
-  "product_dispatch_calendar_estimate": "Voraussichtlicher Versand: {window}"
+  "product_dispatch_calendar_estimate": "Voraussichtlicher Versand: {window}",
+  "product_lightbox_open": "Bild vergrößert ansehen",
+  "product_lightbox_close": "Galerie schließen",
+  "product_lightbox_previous": "Vorheriges Bild",
+  "product_lightbox_next": "Nächstes Bild"
 }

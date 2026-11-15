@@ -2612,5 +2612,9 @@
   "home_charter_item_4_desc": "Nous ne collectons que les données nécessaires à votre commande. Aucun traceur publicitaire tiers.",
   "product_share": "Partager l'annonce",
   "product_share_copied": "Lien copié",
-  "product_dispatch_calendar_estimate": "Expédition estimée : {window}"
+  "product_dispatch_calendar_estimate": "Expédition estimée : {window}",
+  "product_lightbox_open": "Voir l'image en grand",
+  "product_lightbox_close": "Fermer la galerie",
+  "product_lightbox_previous": "Image précédente",
+  "product_lightbox_next": "Image suivante"
 }

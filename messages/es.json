@@ -2618,5 +2618,9 @@
   "home_charter_item_4_desc": "Solo recopilamos lo necesario para su pedido. Sin rastreadores publicitarios de terceros.",
   "product_share": "Compartir anuncio",
   "product_share_copied": "Enlace copiado",
-  "product_dispatch_calendar_estimate": "Envío estimado: {window}"
+  "product_dispatch_calendar_estimate": "Envío estimado: {window}",
+  "product_lightbox_open": "Ver imagen más grande",
+  "product_lightbox_close": "Cerrar galería",
+  "product_lightbox_previous": "Imagen anterior",
+  "product_lightbox_next": "Siguiente imagen"
 }

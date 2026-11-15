@@ -2612,5 +2612,9 @@
   "home_charter_item_4_desc": "We collect only what is needed to deliver your order. No third-party ad tracking.",
   "product_share": "Share listing",
   "product_share_copied": "Link copied",
-  "product_dispatch_calendar_estimate": "Estimated dispatch: {window}"
+  "product_dispatch_calendar_estimate": "Estimated dispatch: {window}",
+  "product_lightbox_open": "View larger image",
+  "product_lightbox_close": "Close gallery",
+  "product_lightbox_previous": "Previous image",
+  "product_lightbox_next": "Next image"
 }

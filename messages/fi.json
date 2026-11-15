@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Keräämme vain tilauksen toimittamiseen tarvittavat tiedot. Ei kolmansien osapuolten mainosseurantaa.",
   "product_share": "Jaa ilmoitus",
   "product_share_copied": "Linkki kopioitu",
-  "product_dispatch_calendar_estimate": "Arvioitu lähetys: {window}"
+  "product_dispatch_calendar_estimate": "Arvioitu lähetys: {window}",
+  "product_lightbox_open": "Näytä suurempi kuva",
+  "product_lightbox_close": "Sulje galleria",
+  "product_lightbox_previous": "Edellinen kuva",
+  "product_lightbox_next": "Seuraava kuva"
 }

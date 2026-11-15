@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Vi samlar bara in det som krävs för din leverans. Ingen tredjepartsreklamspårning.",
   "product_share": "Dela annons",
   "product_share_copied": "Länk kopierad",
-  "product_dispatch_calendar_estimate": "Beräknad leverans: {window}"
+  "product_dispatch_calendar_estimate": "Beräknad leverans: {window}",
+  "product_lightbox_open": "Visa större bild",
+  "product_lightbox_close": "Stäng galleri",
+  "product_lightbox_previous": "Föregående bild",
+  "product_lightbox_next": "Nästa bild"
 }

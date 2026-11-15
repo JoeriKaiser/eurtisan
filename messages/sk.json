@@ -2625,5 +2625,9 @@
   "home_charter_item_4_desc": "Zbierame iba údaje potrebné na doručenie objednávky. Žiadne reklamné sledovanie tretích strán.",
   "product_share": "Zdieľať ponuku",
   "product_share_copied": "Odkaz skopírovaný",
-  "product_dispatch_calendar_estimate": "Odhadované odoslanie: {window}"
+  "product_dispatch_calendar_estimate": "Odhadované odoslanie: {window}",
+  "product_lightbox_open": "Zobraziť väčší obrázok",
+  "product_lightbox_close": "Zavrieť galériu",
+  "product_lightbox_previous": "Predchádzajúci obrázok",
+  "product_lightbox_next": "Ďalší obrázok"
 }

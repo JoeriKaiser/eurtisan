@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Kogume ainult tellimuse täitmiseks vajalikke andmeid. Puudub kolmandate osapoolte reklaamjälgimine.",
   "product_share": "Jaga kuulutust",
   "product_share_copied": "Link kopeeritud",
-  "product_dispatch_calendar_estimate": "Eeldatav saatmine: {window}"
+  "product_dispatch_calendar_estimate": "Eeldatav saatmine: {window}",
+  "product_lightbox_open": "Vaata suuremat pilti",
+  "product_lightbox_close": "Sulge galerii",
+  "product_lightbox_previous": "Eelmine pilt",
+  "product_lightbox_next": "Järgmine pilt"
 }

@@ -2625,5 +2625,9 @@
   "home_charter_item_4_desc": "Shromažďujeme pouze údaje nezbytné k doručení objednávky. Žádné sledování třetími stranami.",
   "product_share": "Sdílet nabídku",
   "product_share_copied": "Odkaz zkopírován",
-  "product_dispatch_calendar_estimate": "Odhadované odeslání: {window}"
+  "product_dispatch_calendar_estimate": "Odhadované odeslání: {window}",
+  "product_lightbox_open": "Zobrazit větší obrázek",
+  "product_lightbox_close": "Zavřít galerii",
+  "product_lightbox_previous": "Předchozí obrázek",
+  "product_lightbox_next": "Další obrázek"
 }

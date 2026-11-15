@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Vi indsamler kun det nødvendige for at levere din ordre. Ingen tredjepartssporing.",
   "product_share": "Del opslag",
   "product_share_copied": "Link kopieret",
-  "product_dispatch_calendar_estimate": "Forventet afsendelse: {window}"
+  "product_dispatch_calendar_estimate": "Forventet afsendelse: {window}",
+  "product_lightbox_open": "Se større billede",
+  "product_lightbox_close": "Luk galleri",
+  "product_lightbox_previous": "Forrige billede",
+  "product_lightbox_next": "Næste billede"
 }

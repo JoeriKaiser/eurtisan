@@ -2618,5 +2618,9 @@
   "home_charter_item_4_desc": "Colectăm doar datele necesare livrării comenzii. Fără module de urmărire publicitară de la terți.",
   "product_share": "Distribuie anunțul",
   "product_share_copied": "Link copiat",
-  "product_dispatch_calendar_estimate": "Expediere estimată: {window}"
+  "product_dispatch_calendar_estimate": "Expediere estimată: {window}",
+  "product_lightbox_open": "Vezi imaginea mărită",
+  "product_lightbox_close": "Închide galeria",
+  "product_lightbox_previous": "Imaginea anterioară",
+  "product_lightbox_next": "Imaginea următoare"
 }

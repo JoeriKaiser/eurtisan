@@ -2618,5 +2618,9 @@
   "home_charter_item_4_desc": "Recolhemos apenas o estritamente necessário para entregar a sua encomenda. Sem rastreadores de terceiros.",
   "product_share": "Partilhar anúncio",
   "product_share_copied": "Ligação copiada",
-  "product_dispatch_calendar_estimate": "Envio previsto: {window}"
+  "product_dispatch_calendar_estimate": "Envio previsto: {window}",
+  "product_lightbox_open": "Ver imagem maior",
+  "product_lightbox_close": "Fechar galeria",
+  "product_lightbox_previous": "Imagem anterior",
+  "product_lightbox_next": "Imagem seguinte"
 }

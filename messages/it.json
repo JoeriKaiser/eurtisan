@@ -2618,5 +2618,9 @@
   "home_charter_item_4_desc": "Raccogliamo solo i dati necessari per la consegna. Nessun tracciamento pubblicitario di terze parti.",
   "product_share": "Condividi inserzione",
   "product_share_copied": "Link copiato",
-  "product_dispatch_calendar_estimate": "Spedizione prevista: {window}"
+  "product_dispatch_calendar_estimate": "Spedizione prevista: {window}",
+  "product_lightbox_open": "Visualizza immagine ingrandita",
+  "product_lightbox_close": "Chiudi galleria",
+  "product_lightbox_previous": "Immagine precedente",
+  "product_lightbox_next": "Immagine successiva"
 }

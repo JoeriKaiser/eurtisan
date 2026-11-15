@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Συλλέγουμε μόνο ό,τι απαιτείται για την παράδοση της παραγγελίας σας. Χωρίς ιχνηλάτες διαφημίσεων τρίτων.",
   "product_share": "Κοινοποίηση καταχώρισης",
   "product_share_copied": "Ο σύνδεσμος αντιγράφηκε",
-  "product_dispatch_calendar_estimate": "Εκτιμώμενη αποστολή: {window}"
+  "product_dispatch_calendar_estimate": "Εκτιμώμενη αποστολή: {window}",
+  "product_lightbox_open": "Προβολή μεγαλύτερης εικόνας",
+  "product_lightbox_close": "Κλείσιμο συλλογής",
+  "product_lightbox_previous": "Προηγούμενη εικόνα",
+  "product_lightbox_next": "Επόμενη εικόνα"
 }

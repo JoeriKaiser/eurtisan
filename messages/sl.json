@@ -2625,5 +2625,9 @@
   "home_charter_item_4_desc": "Zbiramo samo podatke, potrebne za dostavo naročila. Brez oglasnega sledenja tretjih oseb.",
   "product_share": "Deli oglas",
   "product_share_copied": "Povezava kopirana",
-  "product_dispatch_calendar_estimate": "Predvidena odprema: {window}"
+  "product_dispatch_calendar_estimate": "Predvidena odprema: {window}",
+  "product_lightbox_open": "Prikaži večjo sliko",
+  "product_lightbox_close": "Zapri galerijo",
+  "product_lightbox_previous": "Prejšnja slika",
+  "product_lightbox_next": "Naslednja slika"
 }

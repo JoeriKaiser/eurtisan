@@ -2611,5 +2611,9 @@
   "home_charter_item_4_desc": "Събираме само данни, необходими за доставка на поръчката. Без рекламно проследяване от трети страни.",
   "product_share": "Споделяне на обявата",
   "product_share_copied": "Връзката е копирана",
-  "product_dispatch_calendar_estimate": "Очаквано изпращане: {window}"
+  "product_dispatch_calendar_estimate": "Очаквано изпращане: {window}",
+  "product_lightbox_open": "Преглед на по-голямо изображение",
+  "product_lightbox_close": "Затваряне на галерията",
+  "product_lightbox_previous": "Предишно изображение",
+  "product_lightbox_next": "Следващо изображение"
 }

@@ -2632,5 +2632,9 @@
   "home_charter_item_4_desc": "Niġbru biss dak li hu meħtieġ biex titwassal l-ordni tiegħek. L-ebda traċċar ta' reklami minn partijiet terzi.",
   "product_share": "Aqsam il-prodott",
   "product_share_copied": "Link ikkupjat",
-  "product_dispatch_calendar_estimate": "Dispaċċ stmat: {window}"
+  "product_dispatch_calendar_estimate": "Dispaċċ stmat: {window}",
+  "product_lightbox_open": "Ara stampa akbar",
+  "product_lightbox_close": "Agħlaq il-gallerija",
+  "product_lightbox_previous": "Stampa preċedenti",
+  "product_lightbox_next": "Stampa li jmiss"
 }

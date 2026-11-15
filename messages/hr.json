@@ -2618,5 +2618,9 @@
   "home_charter_item_4_desc": "Prikupljamo samo podatke nužne za dostavu narudžbe. Nema praćenja trećih strana.",
   "product_share": "Podijeli oglas",
   "product_share_copied": "Poveznica kopirana",
-  "product_dispatch_calendar_estimate": "Procijenjeno slanje: {window}"
+  "product_dispatch_calendar_estimate": "Procijenjeno slanje: {window}",
+  "product_lightbox_open": "Prikaži veću sliku",
+  "product_lightbox_close": "Zatvori galeriju",
+  "product_lightbox_previous": "Prethodna slika",
+  "product_lightbox_next": "Sljedeća slika"
 }

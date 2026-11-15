@@ -2618,5 +2618,9 @@
   "home_charter_item_4_desc": "Mēs ievācam tikai pasūtījuma piegādei nepieciešamos datus. Nekādas trešo pušu reklāmas izsekošanas.",
   "product_share": "Kopīgot sludinājumu",
   "product_share_copied": "Saite nokopēta",
-  "product_dispatch_calendar_estimate": "Paredzamā nosūtīšana: {window}"
+  "product_dispatch_calendar_estimate": "Paredzamā nosūtīšana: {window}",
+  "product_lightbox_open": "Skatīt lielāku attēlu",
+  "product_lightbox_close": "Aizvērt galeriju",
+  "product_lightbox_previous": "Iepriekšējais attēls",
+  "product_lightbox_next": "Nākamais attēls"
 }

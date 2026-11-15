@@ -2612,5 +2612,9 @@
   "home_charter_item_4_desc": "We verzamelen enkel wat nodig is voor uw bestelling. Geen advertentietrackers van derden.",
   "product_share": "Deel advertentie",
   "product_share_copied": "Link gekopieerd",
-  "product_dispatch_calendar_estimate": "Verwachte verzending: {window}"
+  "product_dispatch_calendar_estimate": "Verwachte verzending: {window}",
+  "product_lightbox_open": "Grotere afbeelding bekijken",
+  "product_lightbox_close": "Galerij sluiten",
+  "product_lightbox_previous": "Vorige afbeelding",
+  "product_lightbox_next": "Volgende afbeelding"
 }
