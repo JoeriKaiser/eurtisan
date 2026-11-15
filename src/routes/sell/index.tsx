@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import { guardAuth } from '#/lib/route-guards'
 import { getSellerShops } from '#/lib/sell-onboarding'
 import { CreateShopButton } from '#/route-components/sell/CreateShopButton'
@@ -14,9 +15,11 @@ export const Route = createFileRoute('/sell/')({
     const shops = await getSellerShops()
     return { shops }
   },
-  head: () => ({
-    meta: [{ title: `Seller Hub | Eurtisan` }],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.seller_hub_title()} | Eurtisan`,
+      description: m.seller_hub_description(),
+    }),
   component: SellerHubRouteComponent,
   pendingComponent: SellerHubPending,
   errorComponent: SellerHubError,

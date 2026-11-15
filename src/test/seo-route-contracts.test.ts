@@ -156,6 +156,11 @@ describe('SEO & Document Head Metadata Contracts', () => {
 
       expect(resetPasswordSource).toContain('createUtilityMeta')
       expect(resetPasswordSource).toContain('head:')
+
+      const sellHubSource = readFileSync('src/routes/sell/index.tsx', 'utf8')
+      expect(sellHubSource).toContain('createUtilityMeta')
+      expect(sellHubSource).toContain('m.seller_hub_title()')
+      expect(sellHubSource).toContain('m.seller_hub_description()')
     })
 
     it('private layouts define createPrivateLayoutMeta', () => {

@@ -244,10 +244,10 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
 }
 
 const CURATED_CRAFT_SHORTCUTS = [
-  { name: 'Ceramics', slug: 'ceramics', icon: Layers },
-  { name: 'Textiles', slug: 'textiles', icon: Scissors },
-  { name: 'Woodwork', slug: 'woodwork', icon: Hammer },
-  { name: 'Jewellery', slug: 'jewellery', icon: Sparkles },
+  { label: () => m.cart_craft_ceramics(), slug: 'ceramics', icon: Layers },
+  { label: () => m.cart_craft_textiles(), slug: 'textiles', icon: Scissors },
+  { label: () => m.cart_craft_woodwork(), slug: 'woodwork', icon: Hammer },
+  { label: () => m.cart_craft_jewellery(), slug: 'jewellery', icon: Sparkles },
 ] as const
 
 function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
@@ -301,7 +301,7 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
                     <Icon size={20} strokeWidth={1.5} aria-hidden='true' />
                   </div>
                   <span className='text-xs font-semibold text-text-primary group-hover:text-accent-primary'>
-                    {cat.name}
+                    {cat.label()}
                   </span>
                 </Link>
               )
