@@ -57,7 +57,9 @@ RUN EURTISAN_PUBLIC_ENV_ONLY=true \
     VITE_UMAMI_SCRIPT_URL="$PUBLIC_UMAMI_SCRIPT_URL" \
     VITE_UMAMI_WEBSITE_ID="$PUBLIC_UMAMI_WEBSITE_ID" \
     bun run build \
-    && bun run bundle:check
+    && bun run bundle:check \
+    && rm -rf /app/src/test \
+    && find /app/src /app/scripts -type f \( -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.*' -o -name 'test-setup*.ts' \) -delete
 
 # Build production dependencies independently from application source. Source or
 # public-version changes must not invalidate the large runtime node_modules layer.

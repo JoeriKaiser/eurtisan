@@ -99,29 +99,27 @@ A stuck or failing tick may be caused by connection pool saturation.
 
 ### Job container not running
 
-For jobs deployed as separate containers, verify the container is up:
+Verify the consolidated `worker` container is up:
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps worker
 ```
 
-If a job container is `Exited` or `Restarting`, inspect its logs and restart:
+If `worker` is `Exited` or `Restarting`, inspect its logs and restart:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs --tail 100 <job-container>
-docker compose -f docker-compose.prod.yml up -d <job-container>
+docker compose -f docker-compose.prod.yml logs --tail 100 worker
+docker compose -f docker-compose.prod.yml up -d worker
 ```
 
 ### Stale job (no successful tick)
 
-A stale job usually means the polling loop crashed or the process is hung.
+A stale job usually means the job tick errored or the `worker` process is hung.
 
-1. Check the app/job container logs for the last successful tick.
+1. Check the `worker` container logs for the last successful tick.
 2. If the process is alive but not ticking, restart the container:
    ```bash
-   docker compose -f docker-compose.prod.yml restart app
-   # or for a dedicated job container
-   docker compose -f docker-compose.prod.yml restart <job-container>
+   docker compose -f docker-compose.prod.yml restart worker
    ```
 3. After restart, confirm `eurtisan_job_last_success_timestamp` updates within the job's interval.
 
@@ -132,13 +130,13 @@ To run a job tick manually for debugging or to recover from a missed window:
 ```bash
 ssh ubuntu@PROD_IP
 cd /opt/eurtisan
-docker compose -f docker-compose.prod.yml exec app bun run job:<job-name>
+docker compose -f docker-compose.prod.yml exec worker bun run job:<job-name>
 ```
 
 Example:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec app bun run job:inventory-cleanup
+docker compose -f docker-compose.prod.yml exec worker bun run job:inventory-cleanup
 ```
 
 ## Verification

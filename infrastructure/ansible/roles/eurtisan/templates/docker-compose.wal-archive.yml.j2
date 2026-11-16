@@ -6,6 +6,16 @@ services:
     command:
       - postgres
       - -c
+      - max_connections={{ postgres_max_connections }}
+      - -c
+      - shared_buffers={{ postgres_shared_buffers }}
+      - -c
+      - effective_cache_size={{ postgres_effective_cache_size }}
+      - -c
+      - work_mem={{ postgres_work_mem }}
+      - -c
+      - maintenance_work_mem={{ postgres_maintenance_work_mem }}
+      - -c
       - wal_level=replica
       - -c
       - archive_mode=on

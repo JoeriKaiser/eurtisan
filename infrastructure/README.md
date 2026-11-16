@@ -8,7 +8,7 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
 |------|---------|
 | **Ansible** | Server hardening, Docker installation, app deployment |
 | **Caddy** | Reverse proxy with automatic HTTPS (Let's Encrypt) |
-| **Docker Compose** | Container orchestration (app, PostgreSQL, Meilisearch, jobs) |
+| **Docker Compose** | Container orchestration (`app`, `worker`, PostgreSQL, Meilisearch, imgproxy) |
 | **Prometheus + Alertmanager** | Metrics and alerting |
 | **Grafana + Alloy + Loki + Tempo** | Observability stack |
 | **GitHub Actions** | Validation-only CI for GitHub pull requests and `main` |
@@ -160,7 +160,7 @@ infrastructure/
 │   │   └── eurtisan/                # App deployment
 │   └── files/
 │       └── deploy.sh                # VPS deploy script
-├── observability/                   # Grafana, Prometheus, Alertmanager, Loki, Tempo, Alloy
+├── observability/                   # Grafana, Prometheus, Alertmanager, Loki, Tempo (`full-obs` profile), Alloy (on-demand on staging)
 └── README.md
 ```
 

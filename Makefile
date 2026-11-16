@@ -175,10 +175,10 @@ deploy-smoke-test: up
 
 # Local observability stack
 obs-up:
-	docker compose -f infrastructure/observability/docker-compose.observability.yml --env-file .env.local up -d
+	docker compose -f infrastructure/observability/docker-compose.observability.yml --profile full-obs --env-file .env.local up -d
 
 obs-down:
-	docker compose -f infrastructure/observability/docker-compose.observability.yml --env-file .env.local down
+	docker compose -f infrastructure/observability/docker-compose.observability.yml --profile full-obs --env-file .env.local down
 
 obs-logs:
 	docker compose -f infrastructure/observability/docker-compose.observability.yml --env-file .env.local logs -f

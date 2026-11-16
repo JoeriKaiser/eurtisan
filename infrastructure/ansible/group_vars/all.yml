@@ -20,6 +20,17 @@ release_signing_public_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/c
 # ── Database ─────────────────────────────────────────────────────────────
 postgres_user: eurtisan
 postgres_db: eurtisan
+postgres_max_connections: 200
+postgres_shared_buffers: "1GB"
+postgres_effective_cache_size: "3GB"
+postgres_work_mem: "16MB"
+postgres_maintenance_work_mem: "256MB"
+
+# ── Observability ────────────────────────────────────────────────────────
+staging_observability_on_demand: false
+observability_full_mode: true
+loki_retention_period: "720h"
+prometheus_retention_time: "15d"
 
 # ── Launch integration contract ─────────────────────────────────────────
 meilisearch_enabled: true

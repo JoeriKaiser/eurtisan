@@ -38,10 +38,12 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: unless-stopped
+    user: "1000:1000"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=10
       # Hardcode Mailpit so staging can never accidentally send via Brevo,
       # even if a production .env is copied in by mistake.
       - EMAIL_SMTP_HOST=mailpit
@@ -51,8 +53,11 @@ services:
       # Traefik routes internally via the coolify network: this port is not required for that.
       - "127.0.0.1:3002:3000"
     networks:
-      - eurtisan
-      - coolify
+      eurtisan:
+        aliases:
+          - eurtisan-app
+      db-internal: {}
+      coolify: {}
     depends_on:
       db:
         condition: service_healthy
@@ -77,8 +82,53 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 2g
+          cpus: '1.5'
+          memory: 384m
+
+  worker:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-worker-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_POOL_MAX=8
+      # Hardcode Mailpit so staging worker outbox never sends via Brevo.
+      - EMAIL_SMTP_HOST=mailpit
+      - EMAIL_SMTP_PORT=1025
+    expose:
+      - "3001"
+    networks:
+      eurtisan:
+        aliases:
+          - eurtisan-worker
+          - financial-totals-reconciliation
+      db-internal: {}
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 320m
+    command: >
+      sh -c "bun run worker"
 
   db:
     image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
@@ -89,6 +139,18 @@ services:
         max-size: "50m"
         max-file: "3"
     restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - max_connections=60
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
     env_file:
       - .env
     environment:
@@ -98,7 +160,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - eurtisan
+      - db-internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -107,8 +169,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4g
+          cpus: '1.5'
+          memory: 512m
 
   meilisearch:
     image: getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c
@@ -130,11 +192,13 @@ services:
       MEILI_ENV: production
       MEILI_NO_ANALYTICS: "true"
       MEILI_UPGRADE_DB: "true"
+      MEILI_MAX_INDEXING_MEMORY: 128Mb
+      MEILI_MAX_INDEXING_THREADS: "1"
     volumes:
       - meilisearch_data:/meili_data
     networks:
       - eurtisan
-      - coolify
+      - db-internal
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
       interval: 10s
@@ -144,8 +208,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.5'
-          memory: 2g
+          cpus: '1.0'
+          memory: 320m
 
   garage:
     image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
@@ -172,11 +236,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1g
+          cpus: '0.5'
+          memory: 128m
 
   imgproxy:
-    image: darthsim/imgproxy:v4.0.18@sha256:03aec6708216c3e017d7ad3fb08eba11d6b83be65556262f8d6cd72803fefeb6
+    image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
     container_name: eurtisan-imgproxy-staging
     logging:
       driver: "json-file"
@@ -196,9 +260,10 @@ services:
       IMGPROXY_LOCAL_FILESYSTEM_ROOT: ""
       IMGPROXY_MAX_SRC_RESOLUTION: 50
       IMGPROXY_MAX_ANIMATION_FRAMES: 1
-      IMGPROXY_CONCURRENCY: 2
-      IMGPROXY_REQUESTS_QUEUE_SIZE: 32
+      IMGPROXY_CONCURRENCY: 1
+      IMGPROXY_REQUESTS_QUEUE_SIZE: 16
       IMGPROXY_TTL: 31536000
+      MALLOC_ARENA_MAX: "2"
     networks:
       - eurtisan
       - coolify
@@ -220,8 +285,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1g
+          cpus: '0.75'
+          memory: 192m
 
   mailpit:
     image: axllent/mailpit:v1.31.6@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
@@ -243,557 +308,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512m
-
-  inventory-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-inventory-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:inventory-cleanup"
-
-  meilisearch-sync:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-meilisearch-sync-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-      meilisearch:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:meilisearch-sync"
-
-  payout-reconciliation:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-payout-reconciliation-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:payout-reconciliation"
-
-  financial-totals-reconciliation:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-financial-totals-reconciliation-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=${FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS:-21600000}
-      - FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=${FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE:-500}
-    expose:
-      - "3001"
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:financial-totals-reconciliation"
-
-  mollie-payment-reconciliation:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-mollie-payment-reconciliation-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:mollie-payment-reconciliation"
-
-  sendcloud-reconciliation:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-sendcloud-reconciliation-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:sendcloud-reconciliation"
-
-  session-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-session-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:session-cleanup"
-
-  cart-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-cart-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:cart-cleanup"
-
-  audit-log-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-audit-log-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:audit-log-cleanup"
-
-  search-event-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-search-event-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:search-event-cleanup"
-
-  notification-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-notification-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    user: "1000:1000"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:notification-cleanup"
-
-  payout-reconciliation-log-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-payout-reconciliation-log-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:payout-reconciliation-log-cleanup"
-
-  verification-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-verification-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:verification-cleanup"
-
-  email-outbox-worker:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-email-outbox-worker-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:email-outbox-worker"
-
-  notification-digest:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-notification-digest-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - NOTIFICATION_DIGEST_INTERVAL_MS=${NOTIFICATION_DIGEST_INTERVAL_MS:-3600000}
-      - NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE=${NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE:-100}
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:notification-digest"
-
-  email-suppression-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-email-suppression-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:email-suppression-cleanup"
-
-  email-retention-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-email-retention-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:email-retention-cleanup"
-
-  sendcloud-retention-cleanup:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-sendcloud-retention-cleanup-staging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:sendcloud-retention-cleanup"
+          cpus: '0.25'
+          memory: 64m
 
 volumes:
   postgres_data:
@@ -808,3 +324,5 @@ networks:
     external: true
   coolify:
     external: true
+  db-internal:
+    driver: bridge
