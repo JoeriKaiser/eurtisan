@@ -15,7 +15,7 @@ A typical request flows through these boundaries:
 5. Domain modules use `src/db/` and `src/db.ts` for PostgreSQL access, or an adapter in `src/integrations/` for an external service.
 6. Page UI is rendered by `src/route-components/` or reusable components from `src/components/`.
 
-Background work runs as separate Bun entrypoints in `src/jobs/`. Production deployment and the observability stack are maintained outside the application source tree.
+Background work runs via `src/jobs/worker-daemon.ts` inside the consolidated `worker` container (and supports individual CLI entrypoints in `src/jobs/`). Production deployment and the observability stack are maintained outside the application source tree.
 
 ## Directory ownership
 

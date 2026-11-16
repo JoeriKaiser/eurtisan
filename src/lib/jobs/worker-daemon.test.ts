@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as jobLockModule from '#/lib/job-lock.server'
+import { startWorkerDaemon } from '#/lib/jobs/worker-daemon.server'
 import {
   ALL_BACKGROUND_JOBS,
   filterBackgroundJobs,
   getJobByName,
 } from '#/lib/jobs/worker-registry.server'
-import { startWorkerDaemon } from '#/lib/jobs/worker-daemon.server'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('Worker Registry', () => {
   it('registers all 19 production background jobs', () => {
@@ -86,5 +91,51 @@ describe('Worker Daemon', () => {
     })
 
     expect(result.executedJobs).toEqual(['cart-cleanup'])
+  })
+
+  it('staggers initial job ticks and aborts cleanly during stagger sleep', async () => {
+    const controller = new AbortController()
+    const started: string[] = []
+
+    vi.spyOn(jobLockModule, 'withJobLock').mockImplementation(async (jobName) => {
+      started.push(jobName)
+      return undefined
+    })
+
+    setTimeout(() => controller.abort(), 35)
+
+    const result = await startWorkerDaemon({
+      only: ['cart-cleanup', 'session-cleanup'],
+      initialStaggerMs: 80,
+      signal: controller.signal,
+    })
+
+    expect(result.executedJobs).toEqual(['cart-cleanup', 'session-cleanup'])
+    expect(started).toEqual(['cart-cleanup'])
+  })
+
+  it('isolates a failing job tick without crashing sibling job loops', async () => {
+    const controller = new AbortController()
+    const started: string[] = []
+
+    vi.spyOn(jobLockModule, 'withJobLock').mockImplementation(async (jobName) => {
+      started.push(jobName)
+      if (jobName === 'cart-cleanup') {
+        throw new Error('simulated transient DB timeout')
+      }
+      if (jobName === 'session-cleanup') {
+        controller.abort()
+      }
+      return undefined
+    })
+
+    const result = await startWorkerDaemon({
+      only: ['cart-cleanup', 'session-cleanup'],
+      initialStaggerMs: 10,
+      signal: controller.signal,
+    })
+
+    expect(result.executedJobs).toEqual(['cart-cleanup', 'session-cleanup'])
+    expect(started).toEqual(['cart-cleanup', 'session-cleanup'])
   })
 })

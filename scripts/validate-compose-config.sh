@@ -54,6 +54,12 @@ validate() {
     docker compose -f "$compose_file" config --no-env-resolution --quiet
 }
 
+extract_digest() {
+  compose_file="$1"
+  image_prefix="$2"
+  grep -F "image: ${image_prefix}@" "$compose_file" | head -n 1 | sed 's/.*@//' | tr -d ' \r'
+}
+
 if grep -q '^        condition: unless-stopped$' docker-compose.prod.yml docker-compose.staging.yml; then
   echo "deploy.restart_policy condition=unless-stopped is invalid with max_attempts; use on-failure" >&2
   exit 1
@@ -63,14 +69,48 @@ if grep -q 'IMGPROXY_S3_\(ACCESS_KEY_ID\|SECRET_ACCESS_KEY\)' docker-compose.pro
   echo "imgproxy uses the AWS SDK credential names, not IMGPROXY_S3_* credential names" >&2
   exit 1
 fi
+
 for compose_file in docker-compose.prod.yml docker-compose.staging.yml; do
   grep -q 'AWS_ACCESS_KEY_ID:' "$compose_file"
   grep -q 'AWS_SECRET_ACCESS_KEY:' "$compose_file"
   grep -q 'IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE:' "$compose_file"
+  grep -q 'user: "1000:1000"' "$compose_file"
+  grep -q 'db-internal' "$compose_file"
+  grep -q 'DATABASE_POOL_MAX=' "$compose_file"
+  grep -q '^  worker:' "$compose_file"
+done
+
+# Ensure staging does not reintroduce standalone job containers.
+if grep -qE '^  (inventory-cleanup|meilisearch-sync|email-outbox-worker|financial-totals-reconciliation):' docker-compose.staging.yml; then
+  echo "docker-compose.staging.yml must use the consolidated worker service instead of standalone job containers" >&2
+  exit 1
+fi
+
+# Enforce pinned image digest parity between production and staging.
+for image_prefix in "postgres:16-alpine" "getmeili/meilisearch:v1.55.0" "darthsim/imgproxy:v3"; do
+  prod_digest="$(extract_digest docker-compose.prod.yml "$image_prefix")"
+  staging_digest="$(extract_digest docker-compose.staging.yml "$image_prefix")"
+  if [ -z "$prod_digest" ] || [ "$prod_digest" != "$staging_digest" ]; then
+    echo "Image digest mismatch for ${image_prefix}: prod='${prod_digest}' staging='${staging_digest}'" >&2
+    exit 1
+  fi
 done
 
 validate docker-compose.prod.yml production
 validate docker-compose.staging.yml staging
+
+env \
+  GRAFANA_ADMIN_PASSWORD=compose-validation-grafana-password \
+  docker compose \
+    -f infrastructure/observability/docker-compose.observability.yml \
+    config --no-env-resolution --quiet
+env \
+  GRAFANA_ADMIN_PASSWORD=compose-validation-grafana-password \
+  docker compose \
+    -f infrastructure/observability/docker-compose.observability.yml \
+    --profile full-obs \
+    config --no-env-resolution --quiet
+
 env \
   REGISTRY_HTTP_SECRET=compose-validation-registry-secret \
   RELEASE_REGISTRY_DATA_PATH=/tmp/eurtisan-registry-validation \
@@ -80,4 +120,4 @@ env \
 docker compose -f docker-compose.yml -f docker-compose.ci.yml config --quiet
 bash scripts/validate-release-registry-access.sh
 
-echo "Production, staging, registry, and CI Compose configuration is valid"
+echo "Production, staging, observability, registry, and CI Compose configuration is valid"

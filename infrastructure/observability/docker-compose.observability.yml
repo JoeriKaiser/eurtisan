@@ -5,6 +5,7 @@ services:
     environment:
       - APP_CONTAINER_NAME=${APP_CONTAINER_NAME:-eurtisan-app}
       - ALLOY_FARO_CORS_ORIGINS=${ALLOY_FARO_CORS_ORIGINS:-https://eurtisan.eu,https://staging.eurtisan.eu}
+      - GOMEMLIMIT=64MiB
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -15,6 +16,11 @@ services:
     networks:
       - eurtisan
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 80m
 
   grafana:
     image: grafana/grafana:13.2.4
@@ -30,6 +36,7 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_SECURITY_DISABLE_GRAVATAR=true
       - GF_SECURITY_ANGULAR_SUPPORT_ENABLED=false
+      - GOMEMLIMIT=90MiB
     # Localhost-only for development access. Caddy reaches Grafana via the eurtisan
     # Docker network in production/staging.
     ports:
@@ -39,25 +46,42 @@ services:
     restart: unless-stopped
     depends_on:
       - loki
-      - tempo
       - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 112m
 
   loki:
     image: grafana/loki:3.7.8
     container_name: eurtisan-loki
+    environment:
+      - LOKI_RETENTION_PERIOD=${LOKI_RETENTION_PERIOD:-720h}
+      - GOMEMLIMIT=90MiB
     volumes:
       - ./loki/loki.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
+    command: ["-config.file=/etc/loki/local-config.yaml", "-config.expand-env=true"]
     # Localhost-only for SSH tunnel debugging. Not exposed publicly.
     ports:
       - "127.0.0.1:3100:3100"
     networks:
       - eurtisan
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 112m
 
   tempo:
     image: grafana/tempo:3.1.0
     container_name: eurtisan-tempo
+    profiles:
+      - full-obs
+    environment:
+      - GOMEMLIMIT=76MiB
     volumes:
       - ./tempo/tempo.yml:/etc/tempo/tempo.yaml:ro
       - tempo_data:/var/tempo
@@ -68,10 +92,17 @@ services:
     networks:
       - eurtisan
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 96m
 
   prometheus:
     image: prom/prometheus:v3.15.0
     container_name: eurtisan-prometheus
+    environment:
+      - GOMEMLIMIT=115MiB
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
@@ -84,9 +115,15 @@ services:
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}'
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-remote-write-receiver'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 144m
+
   alertmanager:
     image: prom/alertmanager:v0.34.1
     container_name: eurtisan-alertmanager
@@ -106,9 +143,15 @@ services:
       - ALERTMANAGER_SMTP_FROM=${ALERTMANAGER_SMTP_FROM:-}
       - ALERTMANAGER_SMTP_TO=${ALERTMANAGER_SMTP_TO:-}
       - ALERTMANAGER_WEBHOOK_URL=${ALERTMANAGER_WEBHOOK_URL:-}
+      - GOMEMLIMIT=24MiB
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 32m
 
 volumes:
   alloy_data:

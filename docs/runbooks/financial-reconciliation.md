@@ -34,7 +34,7 @@ The deployed service is continuous. Polling-tick failures are recorded and retri
 The owner-authorized one-shot form is detection-only:
 
 ```bash
-docker compose -f docker-compose.staging.yml run --rm financial-totals-reconciliation \
+docker compose -f docker-compose.staging.yml exec -T worker \
   bun run job:financial-totals-reconciliation --once
 ```
 

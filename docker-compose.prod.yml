@@ -69,8 +69,10 @@ services:
       - NODE_ENV=production
       - DATABASE_POOL_MAX=20
     networks:
-      - eurtisan
-      - db-internal
+      eurtisan:
+        aliases:
+          - eurtisan-app
+      db-internal: {}
     depends_on:
       db:
         condition: service_healthy
@@ -90,10 +92,21 @@ services:
 
   db:
     # Pinned digest for postgres:16-alpine
-    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     container_name: eurtisan-db
     restart: unless-stopped
-    command: ["postgres", "-c", "max_connections=200"]
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
     environment:
       - POSTGRES_USER=${POSTGRES_USER:?required database user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?required database password}
@@ -114,8 +127,8 @@ services:
           memory: 4g
 
   meilisearch:
-    # Pinned digest for getmeili/meilisearch:v1.43.0
-    image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
+    # Pinned digest for getmeili/meilisearch:v1.55.0
+    image: getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c
     container_name: eurtisan-meilisearch
     restart: unless-stopped
     environment:
@@ -126,6 +139,8 @@ services:
       # to start.
       - MEILI_ENV=production
       - MEILI_NO_ANALYTICS=true
+      - MEILI_UPGRADE_DB=true
+      - MEILI_MAX_INDEXING_MEMORY=512Mb
     volumes:
       - meilisearch_data:/meili_data
     networks:
@@ -165,6 +180,7 @@ services:
       IMGPROXY_CONCURRENCY: 2
       IMGPROXY_REQUESTS_QUEUE_SIZE: 32
       IMGPROXY_TTL: 31536000
+      MALLOC_ARENA_MAX: "2"
     networks:
       - eurtisan
     healthcheck:

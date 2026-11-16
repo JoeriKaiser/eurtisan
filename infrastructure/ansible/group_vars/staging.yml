@@ -48,4 +48,14 @@ pgbackrest_repo_cipher_pass: "{{ pgbackrest_repo_cipher_pass_staging }}"
 # repository is available. This does not satisfy the off-site production gate.
 postgres_wal_archive_enabled: true
 pgbackrest_repository_type: posix
+pgbackrest_process_max: 1
+postgres_max_connections: 60
+postgres_shared_buffers: "128MB"
+postgres_effective_cache_size: "384MB"
+postgres_work_mem: "4MB"
+postgres_maintenance_work_mem: "64MB"
+staging_observability_on_demand: true
+observability_full_mode: false
+loki_retention_period: "72h"
+prometheus_retention_time: "72h"
 faro_sample_rate: "1"

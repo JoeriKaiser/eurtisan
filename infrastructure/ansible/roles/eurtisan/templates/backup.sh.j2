@@ -115,11 +115,12 @@ json_log "info" "Logical backup created" \
   "{\"file\":\"$BACKUP_FILE\",\"size_bytes\":$(stat -c%s "$BACKUP_FILE")}"
 
 if ! docker run -d --rm --name "$VERIFY_CONTAINER" \
+  --memory=256m \
   --network none \
   -e POSTGRES_USER=verify \
   -e POSTGRES_PASSWORD=verify-only \
   -e POSTGRES_DB=verify_backup \
-  "$POSTGRES_VERIFY_IMAGE" >/dev/null; then
+  "$POSTGRES_VERIFY_IMAGE" -c shared_buffers=64MB >/dev/null; then
   BACKUP_FAILED=true
   BACKUP_ERROR="Could not start backup verification database"
   json_log "error" "$BACKUP_ERROR" "{}"

@@ -26,19 +26,7 @@
 
 - name: Determine background services for environment
   set_fact:
-    background_services: >-
-      {{
-        ['worker']
-        if (deployment_environment == 'production')
-        else [
-          'inventory-cleanup', 'session-cleanup', 'cart-cleanup', 'verification-cleanup',
-          'meilisearch-sync', 'audit-log-cleanup', 'search-event-cleanup', 'notification-cleanup',
-          'sendcloud-reconciliation', 'mollie-payment-reconciliation', 'payout-reconciliation',
-          'payout-reconciliation-log-cleanup', 'email-outbox-worker', 'notification-digest',
-          'email-suppression-cleanup', 'email-retention-cleanup',
-          'financial-totals-reconciliation', 'sendcloud-retention-cleanup'
-        ]
-      }}
+    background_services: ['worker']
 
 - name: Create application directory
   file:
@@ -406,7 +394,7 @@
     job: "docker image prune -f > /dev/null 2>&1"
     user: root
 
-- name: Start observability stack
+- name: Configure observability stack
   block:
     - name: Ensure eurtisan Docker network exists
       command: docker network create eurtisan
@@ -428,11 +416,18 @@
         rsync_opts:
           - "--exclude=.git"
           - "--exclude=prometheus/prometheus.yml"
+          - "--exclude=alloy/config.alloy"
 
     - name: Render Prometheus scrape config with metrics token
       template:
         src: "{{ playbook_dir }}/../observability/prometheus/prometheus.yml"
         dest: /opt/eurtisan/observability/prometheus/prometheus.yml
+        mode: "0644"
+
+    - name: Render Alloy collector configuration
+      template:
+        src: config.alloy.j2
+        dest: /opt/eurtisan/observability/alloy/config.alloy
         mode: "0644"
 
     - name: Render environment-specific Alertmanager configuration
@@ -441,10 +436,35 @@
         dest: /opt/eurtisan/observability/alertmanager/alertmanager.yml
         mode: "0644"
 
+    - name: Stop observability containers when on-demand mode is active
+      when: staging_observability_on_demand | default(false) | bool
+      command: >-
+        docker rm -f
+        eurtisan-alloy
+        eurtisan-grafana
+        eurtisan-loki
+        eurtisan-tempo
+        eurtisan-prometheus
+        eurtisan-alertmanager
+      failed_when: false
+      changed_when: true
+
     - name: Ensure observability stack is running
-      command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d --force-recreate"
+      when: not (staging_observability_on_demand | default(false) | bool)
+      command: >-
+        docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml
+        {{ '--profile full-obs ' if (observability_full_mode | default(true) | bool) else '' }}--env-file /opt/eurtisan/.env
+        up -d --force-recreate
       args:
         chdir: /opt/eurtisan/observability
+
+    - name: Remove disabled Tempo container when full observability is off
+      when:
+        - not (staging_observability_on_demand | default(false) | bool)
+        - not (observability_full_mode | default(true) | bool)
+      command: docker rm -f eurtisan-tempo
+      failed_when: false
+      changed_when: true
 
     - name: Connect proxy-facing observability services to Coolify network
       community.docker.docker_network:
@@ -453,7 +473,9 @@
           - eurtisan-alloy
           - eurtisan-grafana
         appends: true
-      when: coexist_with_proxy | default(false)
+      when:
+        - coexist_with_proxy | default(false)
+        - not (staging_observability_on_demand | default(false) | bool)
   tags: [observability]
 
 - name: Provision the staging release registry
@@ -834,6 +856,31 @@
     {{ background_services | join(' ') }}
   args:
     chdir: /opt/eurtisan
+
+- name: Remove legacy standalone staging job containers before database migration
+  when: deployment_environment == 'staging'
+  command: >-
+    docker rm -f
+    eurtisan-inventory-cleanup-staging
+    eurtisan-session-cleanup-staging
+    eurtisan-cart-cleanup-staging
+    eurtisan-verification-cleanup-staging
+    eurtisan-meilisearch-sync-staging
+    eurtisan-audit-log-cleanup-staging
+    eurtisan-search-event-cleanup-staging
+    eurtisan-notification-cleanup-staging
+    eurtisan-sendcloud-reconciliation-staging
+    eurtisan-mollie-payment-reconciliation-staging
+    eurtisan-payout-reconciliation-staging
+    eurtisan-payout-reconciliation-log-cleanup-staging
+    eurtisan-email-outbox-worker-staging
+    eurtisan-notification-digest-staging
+    eurtisan-email-suppression-cleanup-staging
+    eurtisan-email-retention-cleanup-staging
+    eurtisan-financial-totals-reconciliation-staging
+    eurtisan-sendcloud-retention-cleanup-staging
+  failed_when: false
+  changed_when: true
 
 - name: Start stateful dependencies first
   command: "{{ docker_compose }} up -d db meilisearch{{ ' garage' if (garage_enabled | bool) else '' }}"

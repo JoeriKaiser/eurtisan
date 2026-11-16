@@ -34,19 +34,7 @@
 
 - name: Determine background services for environment
   set_fact:
-    background_services: >-
-      {{
-        ['worker']
-        if (deployment_environment == 'production')
-        else [
-          'inventory-cleanup', 'session-cleanup', 'cart-cleanup', 'verification-cleanup',
-          'meilisearch-sync', 'audit-log-cleanup', 'search-event-cleanup', 'notification-cleanup',
-          'sendcloud-reconciliation', 'mollie-payment-reconciliation', 'payout-reconciliation',
-          'payout-reconciliation-log-cleanup', 'email-outbox-worker', 'notification-digest',
-          'email-suppression-cleanup', 'email-retention-cleanup',
-          'financial-totals-reconciliation', 'sendcloud-retention-cleanup'
-        ]
-      }}
+    background_services: ['worker']
   when: background_services is not defined
 
 - name: Start background services without saturating the host

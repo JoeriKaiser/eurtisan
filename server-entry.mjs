@@ -13,15 +13,16 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import { extname, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
 import { buildCspHeader } from '../../src/lib/csp.ts'
 import { injectScriptNonces, runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
 import { assertMockPayoutsNotProduction } from '../../src/lib/env.server.ts'
 import { assertValidServerEnvironment } from '../../src/lib/infra/server-environment.server.ts'
+import { buildStaticAssetMap, resolveStaticAsset } from '../../src/lib/infra/static-asset-manifest.ts'
 import { getSafeRequestPath } from '../../src/lib/request-path.server.ts'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
@@ -40,27 +41,7 @@ if (process.env.VALIDATE_ENV_ONLY === 'true') {
 }
 const MAX_BODY_SIZE = parseInt(process.env.MAX_BODY_SIZE ?? '10485760', 10)
 const MAX_BODY_SIZE_WEBHOOKS = parseInt(process.env.MAX_BODY_SIZE_WEBHOOKS ?? '1048576', 10)
-
-// MIME types for static files
-const MIME_TYPES = {
-  '.js': 'application/javascript',
-  '.mjs': 'application/javascript',
-  '.css': 'text/css',
-  '.html': 'text/html',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.webmanifest': 'application/manifest+json',
-  '.txt': 'text/plain',
-  '.xml': 'application/xml',
-}
+const staticAssetMap = buildStaticAssetMap(CLIENT_DIR)
 
 // Import the TanStack Start SSR handler from dist/server/server.js
 const serverModule = await import(join(SERVER_DIR, 'server.js'))
@@ -105,63 +86,6 @@ function isPrivateRoute(url) {
   return false
 }
 
-// Try to serve a static file from the client build directory
-function serveStatic(urlPath, acceptEncoding = '') {
-  let cleanPath
-  try {
-    cleanPath = decodeURIComponent(urlPath.split('?')[0])
-  } catch {
-    return { body: null, mime: 'text/plain', status: 400, etag: null, lastModified: null }
-  }
-  const fsPath = join(CLIENT_DIR, cleanPath)
-
-  // Security: prevent directory traversal
-  if (!fsPath.startsWith(CLIENT_DIR)) {
-    return { body: null, mime: 'text/plain', status: 403, etag: null, lastModified: null }
-  }
-
-  if (!existsSync(fsPath)) {
-    return { body: null, mime: 'text/plain', status: 404, etag: null, lastModified: null }
-  }
-
-  const stat = statSync(fsPath)
-  if (!stat.isFile()) {
-    return { body: null, mime: 'text/plain', status: 404, etag: null, lastModified: null }
-  }
-
-  const ext = extname(fsPath).toLowerCase()
-  const mime = MIME_TYPES[ext] ?? 'application/octet-stream'
-  const etag = `"${stat.mtimeMs.toString(16)}"`
-  const lastModified = stat.mtime.toUTCString()
-
-  const encoding = typeof acceptEncoding === 'string' ? acceptEncoding : ''
-  const brPath = `${fsPath}.br`
-  const gzPath = `${fsPath}.gz`
-
-  try {
-    if (encoding.includes('br') && existsSync(brPath)) {
-      const body = readFileSync(brPath)
-      return { body, mime, status: 200, etag, lastModified, contentEncoding: 'br' }
-    }
-    if ((encoding.includes('gzip') || encoding.includes('deflate')) && existsSync(gzPath)) {
-      const body = readFileSync(gzPath)
-      return { body, mime, status: 200, etag, lastModified, contentEncoding: 'gzip' }
-    }
-    const body = readFileSync(fsPath)
-    return { body, mime, status: 200, etag, lastModified }
-  } catch (err) {
-    console.error(JSON.stringify({
-      ts: new Date().toISOString(),
-      level: 'error',
-      msg: 'Static file read failed',
-      path: fsPath,
-      error: err.message,
-      service: 'eurtisan-app',
-    }))
-    return { body: null, mime: 'text/plain', status: 500, etag: null, lastModified: null }
-  }
-}
-
 function getBodyLimit(url) {
   return url.startsWith('/api/webhooks/') ? MAX_BODY_SIZE_WEBHOOKS : MAX_BODY_SIZE
 }
@@ -186,10 +110,19 @@ const server = createServer(async (req, res) => {
     try {
       const url = req.url ?? '/'
 
-    // Try static file serving first (before the TanStack handler)
+    // Try static file lookup from the startup manifest first (zero disk I/O on SSR misses)
     if (req.method === 'GET' || req.method === 'HEAD') {
-      const staticResult = serveStatic(url, req.headers['accept-encoding'] || '')
-      if (staticResult.status === 200 && staticResult.body) {
+      const staticResult = resolveStaticAsset(
+        staticAssetMap,
+        url,
+        req.headers['accept-encoding'] || '',
+      )
+      if (staticResult.status === 400) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' })
+        res.end('Bad Request')
+        return
+      }
+      if (staticResult.status === 200 && staticResult.filePath) {
         const ifNoneMatch = req.headers['if-none-match']
         const ifModifiedSince = req.headers['if-modified-since']
 
@@ -197,23 +130,16 @@ const server = createServer(async (req, res) => {
           (ifNoneMatch && ifNoneMatch === staticResult.etag) ||
           (ifModifiedSince && ifModifiedSince === staticResult.lastModified)
 
-        const cacheControl = url.startsWith('/assets/')
-          ? 'public, max-age=31536000, immutable'
-          : url.startsWith('/uploads/')
-            ? 'public, max-age=3600'
-            : 'public, max-age=86400'
-
         const headers = {
           'Content-Type': staticResult.mime,
           'ETag': staticResult.etag,
           'Last-Modified': staticResult.lastModified,
-          'Cache-Control': cacheControl,
+          'Cache-Control': staticResult.cacheControl,
         }
         if (staticResult.contentEncoding) {
           headers['Content-Encoding'] = staticResult.contentEncoding
           headers['Vary'] = 'Accept-Encoding'
         }
-
 
         if (notModified) {
           res.writeHead(304, headers)
@@ -221,12 +147,22 @@ const server = createServer(async (req, res) => {
           return
         }
 
-        headers['Content-Length'] = String(staticResult.body.length)
-        res.writeHead(200, headers)
-        if (req.method === 'GET') {
-          res.end(staticResult.body)
-        } else {
+        headers['Content-Length'] = String(staticResult.size)
+        if (req.method === 'HEAD') {
+          res.writeHead(200, headers)
           res.end()
+          return
+        }
+
+        try {
+          const body = await readFile(staticResult.filePath)
+          headers['Content-Length'] = String(body.length)
+          res.writeHead(200, headers)
+          res.end(body)
+        } catch (err) {
+          logger.error('Static file read failed', err, { path: staticResult.filePath })
+          res.writeHead(500, { 'Content-Type': 'text/plain' })
+          res.end('Internal Server Error')
         }
         return
       }
