@@ -129,16 +129,6 @@ export function scheduleCheckoutPostOrderNotifications(input: CheckoutNotificati
             price: formatPriceEUR(item.totalCents),
           }))
           const sellerRecord = sellerById.get(shopRecord.ownerId)
-          const sellerPayload = toSellerEmailPayload(
-            buildShopLegalIdentity({
-              shopName: shopRecord.name,
-              ownerEmail: sellerRecord?.email ?? '',
-              vatId: shopRecord.vatId,
-              businessAddress: decryptJsonb(shopRecord.businessAddress),
-              shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
-              traderStatus: shopRecord.traderStatus,
-            }),
-          )
 
           await Promise.all([
             createNotification(shopRecord.ownerId, 'order_placed', {
@@ -150,6 +140,7 @@ export function scheduleCheckoutPostOrderNotifications(input: CheckoutNotificati
               userId: shopRecord.ownerId,
               template: 'order_confirmation',
               data: {
+                recipientRole: 'seller',
                 orderNumber: input.orderNumber,
                 buyerName: sellerRecord?.name ?? null,
                 shopName: shopRecord.name,
@@ -161,7 +152,6 @@ export function scheduleCheckoutPostOrderNotifications(input: CheckoutNotificati
                   }, 0),
                 ),
                 orderUrl: `${baseUrl}/studio/${createdShopOrder.shopId}/orders/${createdShopOrder.shopOrderId}`,
-                ...sellerPayload,
               },
               idempotencyKey: `order:${input.platformOrderId}:confirmation:seller:${createdShopOrder.shopId}`,
               category: 'transactional',

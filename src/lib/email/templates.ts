@@ -122,15 +122,26 @@ async function renderOrderConfirmation(
     })
     .join('\n')
 
+  const isSeller = data.recipientRole === 'seller'
+  const subject = isSeller
+    ? m.email_seller_order_subject({ orderNumber, shopName })
+    : m.email_order_confirmation_subject({ orderNumber, shopName })
+  const title = isSeller
+    ? m.email_seller_order_title({ shopName })
+    : m.email_order_confirmation_title({ buyerName })
+  const body = isSeller
+    ? m.email_seller_order_body({ orderNumber, shopName })
+    : m.email_order_confirmation_body({ orderNumber, shopName })
+  const viewLabel = isSeller ? m.email_seller_order_view() : m.email_order_confirmation_view()
+  const viewText = isSeller
+    ? m.email_seller_order_view_txt({ orderUrl })
+    : m.email_order_confirmation_view_txt({ orderUrl })
+
   const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
-    m.email_order_confirmation_title({ buyerName }),
+    title,
   )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${m
-    .email_order_confirmation_body({
-      orderNumber,
-      shopName,
-    })
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${body
     .replace(`#${orderNumber}`, `<strong>#${escapeHtml(orderNumber)}</strong>`)
     .replace(shopName, `<strong>${escapeHtml(shopName)}</strong>`)}</div>
   <br />
@@ -142,30 +153,27 @@ async function renderOrderConfirmation(
   <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">${escapeHtml(
     m.email_total({ total }),
   )}</div>
-  ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_order_confirmation_view())}</a></div>` : ''}
-  ${sellerBlockHtml}
+  ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(viewLabel)}</a></div>` : ''}
+  ${isSeller ? '' : sellerBlockHtml}
   <br /><br />
   ${await renderEmailLegalFooterHtml(to)}`
 
-  const html = wrapInEmailTemplate(
-    m.email_order_confirmation_subject({ orderNumber, shopName }),
-    contentHtml,
-  )
+  const html = wrapInEmailTemplate(subject, contentHtml)
 
-  const text = `${m.email_order_confirmation_title({ buyerName })}
+  const text = `${title}
 
-${m.email_order_confirmation_body({ orderNumber, shopName })}
+${body}
 
 ${m.email_order_confirmation_items()}
 ${itemsListText || '- No items'}
 
 ${m.email_total({ total })}
-${orderUrl ? `${m.email_order_confirmation_view_txt({ orderUrl })}` : ''}
-${sellerTradeName && sellerContactEmail ? `\n${m.email_seller_identity_title()}: ${sellerTradeName}${sellerAddress ? `, ${sellerAddress}` : ''}\n${m.checkout_seller_contact_label()}: ${sellerContactEmail}${sellerVatId ? `\n${m.checkout_seller_vat_label()}: ${sellerVatId}` : ''}` : ''}
+${orderUrl ? viewText : ''}
+${!isSeller && sellerTradeName && sellerContactEmail ? `\n${m.email_seller_identity_title()}: ${sellerTradeName}${sellerAddress ? `, ${sellerAddress}` : ''}\n${m.checkout_seller_contact_label()}: ${sellerContactEmail}${sellerVatId ? `\n${m.checkout_seller_vat_label()}: ${sellerVatId}` : ''}` : ''}
 
 ${await renderEmailLegalFooterText(to)}`
 
-  return { subject: m.email_order_confirmation_subject({ orderNumber, shopName }), html, text }
+  return { subject, html, text }
 }
 
 /* -------------------------------------------------------------------------- */

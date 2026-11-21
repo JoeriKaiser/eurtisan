@@ -14,7 +14,7 @@ const origin: ShippingAddress = {
   city: 'Lyon',
   postalCode: '69001',
   country: 'FR',
-  email: 'creator@eurtisan.local',
+  email: 'atelier@theforge.eu',
 }
 
 const destination: ShippingAddress = {
@@ -23,7 +23,7 @@ const destination: ShippingAddress = {
   city: 'Paris',
   postalCode: '75001',
   country: 'FR',
-  email: 'buyer@example.invalid',
+  email: 'buyer@eurtisan.eu',
   phone: '+33142685500',
 }
 
@@ -270,7 +270,7 @@ describe('SendcloudProvider', () => {
         postal_code: '69001',
         city: 'Lyon',
         country_code: 'FR',
-        email: 'creator@eurtisan.local',
+        email: 'atelier@theforge.eu',
       })
       expect(body.to_address).toMatchObject({
         name: 'Staging Walkthrough',
@@ -279,7 +279,7 @@ describe('SendcloudProvider', () => {
         postal_code: '75001',
         city: 'Paris',
         country_code: 'FR',
-        email: 'buyer@example.invalid',
+        email: 'buyer@eurtisan.eu',
         phone_number: '+33142685500',
       })
       expect(body.order_number).toBe('order-uuid-1')
@@ -332,6 +332,37 @@ describe('SendcloudProvider', () => {
       const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
       const body = JSON.parse((calls[0][1] as { body: string }).body)
       expect(body.to_service_point).toEqual({ id: 'SP12345' })
+    })
+
+    it('omits reserved non-routable test email domains (.local, .invalid) from Sendcloud v3 addresses', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
+      const fetchFn = makeFetch({
+        data: {
+          id: 'shipment-uuid-reserved-email',
+          carrier: { code: 'sendcloud' },
+          parcels: [{ id: 1001, tracking_number: '', documents: [] }],
+        },
+      })
+
+      const provider = new SendcloudProvider({
+        publicKey: 'pk',
+        secretKey: 'sk',
+        fetch: fetchFn,
+      })
+
+      await provider.createLabel({
+        origin: { ...origin, email: 'creator@eurtisan.local' },
+        destination: { ...destination, email: 'staging-walkthrough@example.invalid' },
+        package: pkg,
+        carrierService: 'colissimo:home/fr',
+        reference: 'order-uuid-reserved',
+      })
+
+      const body = JSON.parse(
+        ((fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][1] as { body: string }).body,
+      )
+      expect(body.from_address.email).toBeUndefined()
+      expect(body.to_address.email).toBeUndefined()
     })
 
     it('rejects incomplete origin address before calling Sendcloud', async () => {
