@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Package, ShippingAddress } from '#/lib/shipping-provider'
 import { SendcloudError, SendcloudProvider } from './sendcloud-provider'
@@ -141,7 +141,12 @@ describe('SendcloudProvider', () => {
   })
 
   describe('createLabel', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
     it('creates a parcel and returns a label', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({
         id: 987,
         tracking_number: '3SABC1234567',
@@ -183,6 +188,7 @@ describe('SendcloudProvider', () => {
     })
 
     it('includes to_service_point when pickup point is provided', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({
         id: 987,
         tracking_number: '3SABC1234567',
@@ -221,6 +227,7 @@ describe('SendcloudProvider', () => {
     })
 
     it('sends the declared order value for customs', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({
         id: 987,
         tracking_number: '3SABC1234567',
@@ -253,6 +260,7 @@ describe('SendcloudProvider', () => {
     })
 
     it('throws SendcloudError on API failure', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({ error: { message: 'Invalid shipment id' } }, 400)
 
       const provider = new SendcloudProvider({
@@ -270,6 +278,114 @@ describe('SendcloudProvider', () => {
           reference: 'order-uuid-1',
         }),
       ).rejects.toBeInstanceOf(SendcloudError)
+    })
+
+    it('uses pinned unstamped letter method id when force unstamped letter is enabled', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
+      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID', '8')
+
+      const fetchFn = makeFetch({
+        id: 987,
+        tracking_number: '3SABC1234567',
+        label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
+        status: { message: 'Label created' },
+      })
+
+      const provider = new SendcloudProvider({
+        publicKey: 'pk',
+        secretKey: 'sk',
+        fetch: fetchFn,
+      })
+
+      await provider.createLabel({
+        origin,
+        destination,
+        package: pkg,
+        carrierService: '123',
+        reference: 'order-uuid-1',
+      })
+
+      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
+      expect(calls).toHaveLength(1)
+      expect(String(calls[0][0])).toContain('/parcels')
+      const body = JSON.parse((calls[0][1] as { body: string }).body)
+      expect(body.parcel.shipment.id).toBe(8)
+    })
+
+    it('discovers unstamped letter method when force unstamped letter is enabled and id is unset', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
+      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID', '')
+
+      const fetchFn = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({
+            shipping_methods: [{ id: 8, name: 'Unstamped letter', carrier: 'sendcloud' }],
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({
+            id: 987,
+            tracking_number: '3SABC1234567',
+            label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
+            status: { message: 'Label created' },
+          }),
+        } as Response)
+
+      const provider = new SendcloudProvider({
+        publicKey: 'pk',
+        secretKey: 'sk',
+        fetch: fetchFn,
+      })
+
+      await provider.createLabel({
+        origin,
+        destination,
+        package: pkg,
+        carrierService: '123',
+        reference: 'order-uuid-1',
+      })
+
+      expect(fetchFn).toHaveBeenCalledTimes(2)
+      const parcelBody = JSON.parse((fetchFn.mock.calls[1][1] as { body: string }).body)
+      expect(parcelBody.parcel.shipment.id).toBe(8)
+    })
+
+    it('fails closed without creating a parcel when force unstamped letter cannot resolve a method', async () => {
+      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
+      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID', '')
+
+      const fetchFn = makeFetch({
+        shipping_methods: [{ id: 123, name: 'PostNL Standard', carrier: 'PostNL' }],
+      })
+
+      const provider = new SendcloudProvider({
+        publicKey: 'pk',
+        secretKey: 'sk',
+        fetch: fetchFn,
+      })
+
+      await expect(
+        provider.createLabel({
+          origin,
+          destination,
+          package: pkg,
+          carrierService: '123',
+          reference: 'order-uuid-1',
+        }),
+      ).rejects.toMatchObject({
+        name: 'SendcloudError',
+        statusCode: 503,
+      })
+
+      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
+      expect(calls.some((call) => String(call[0]).includes('/parcels'))).toBe(false)
     })
   })
 

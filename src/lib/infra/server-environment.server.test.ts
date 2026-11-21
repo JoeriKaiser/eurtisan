@@ -128,6 +128,31 @@ describe('parseServerEnvironment', () => {
     expect(parseServerEnvironment(environment).S3_ENDPOINT).toBe('http://garage:3900')
   })
 
+  it('rejects a test Mollie API key in production', () => {
+    const environment = validServerEnvironment()
+    environment.MOLLIE_API_KEY = `test_${'x'.repeat(30)}`
+
+    expect(() => parseServerEnvironment(environment)).toThrow('MOLLIE_API_KEY')
+  })
+
+  it('rejects a live Mollie API key in staging', () => {
+    const environment = validServerEnvironment()
+    environment.APP_ENV = 'staging'
+    environment.VITE_APP_ENV = 'staging'
+    environment.S3_ENDPOINT = 'http://garage:3900'
+    environment.S3_PUBLIC_ENDPOINT = 'https://s3-staging.eurtisan.test'
+    environment.S3_REGION = 'garage'
+    environment.MOLLIE_API_KEY = `live_${'x'.repeat(30)}`
+    environment.MOLLIE_TEST_MODE = 'true'
+    environment.SENDCLOUD_FORCE_UNSTAMPED_LETTER = 'true'
+    environment.EMAIL_DELIVERY_PROVIDER = 'smtp'
+    environment.EMAIL_SMTP_HOST = 'mailpit'
+    environment.BREVO_API_KEY = ''
+    environment.BREVO_WEBHOOK_TOKEN = ''
+
+    expect(() => parseServerEnvironment(environment)).toThrow('MOLLIE_API_KEY')
+  })
+
   it('rejects a private Garage endpoint in production', () => {
     const environment = validServerEnvironment()
     environment.S3_ENDPOINT = 'http://garage:3900'

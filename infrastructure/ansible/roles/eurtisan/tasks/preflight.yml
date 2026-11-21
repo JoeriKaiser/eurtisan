@@ -168,6 +168,7 @@
   ansible.builtin.assert:
     that:
       - (deployment_environment == 'production' and not (mollie_test_mode | bool)) or (deployment_environment == 'staging' and (mollie_test_mode | bool))
+      - (deployment_environment == 'production' and (mollie_api_key is match('^live_[A-Za-z0-9_-]{20,}$'))) or (deployment_environment == 'staging' and (mollie_api_key is match('^test_[A-Za-z0-9_-]{20,}$')))
       - (deployment_environment == 'production' and not (sendcloud_force_unstamped_letter | bool)) or (deployment_environment == 'staging' and (sendcloud_force_unstamped_letter | bool))
       - (deployment_environment == 'production' and email_delivery_provider == 'brevo') or (deployment_environment == 'staging' and email_delivery_provider == 'smtp')
     fail_msg: "Mollie, Sendcloud, or email mode is inconsistent with deployment_environment"

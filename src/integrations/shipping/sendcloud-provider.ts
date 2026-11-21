@@ -345,8 +345,12 @@ export class SendcloudProvider implements ShippingProvider {
     if (forceUnstamped) {
       const id = await this.getUnstampedLetterMethodId()
       if (id) return id
-      logger.warn(
-        'SendcloudProvider: Unstamped letter method not found and force is enabled. Falling back to selected method.',
+      logger.error(
+        'SendcloudProvider: Unstamped letter method not found while SENDCLOUD_FORCE_UNSTAMPED_LETTER is enabled. Refusing to fall back to selected method.',
+      )
+      throw new SendcloudError(
+        'Unstamped letter shipping method could not be resolved while SENDCLOUD_FORCE_UNSTAMPED_LETTER is enabled',
+        503,
       )
     }
 

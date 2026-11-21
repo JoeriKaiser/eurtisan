@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
 import { shop } from '#/db/schema'
 import { signMollieState, verifyMollieState } from '#/lib/auth-utils.server'
@@ -32,6 +32,10 @@ describe('Mollie Connect OAuth Callback', () => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     await clearTestTables()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   describe('Cryptographic State Helpers', () => {
@@ -245,6 +249,32 @@ describe('Mollie Connect OAuth Callback', () => {
       expect(updatedShop.mollieAccountId).toBe('org_67890')
 
       fetchSpy.mockRestore()
+    })
+
+    it('rejects mock_code_ bypass in production', async () => {
+      await seedUser('user-owner')
+      await seedShop('shop-123', 'user-owner')
+
+      mockGetSession.mockResolvedValueOnce({
+        user: { id: 'user-owner', role: 'creator' },
+      })
+
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('BETTER_AUTH_SECRET', 'test-production-auth-secret-value')
+      vi.stubEnv('MOLLIE_CLIENT_ID', '')
+      vi.stubEnv('MOLLIE_CLIENT_SECRET', '')
+
+      const state = signMollieState('shop-123', 'user-owner')
+      const req = new Request(
+        `https://eurtisan.eu/api/auth/mollie/callback?code=mock_code_bypass&state=${encodeURIComponent(state)}`,
+      )
+      const res = await getHandler({ request: req })
+
+      expect(res.status).toBe(502)
+
+      const [unchangedShop] = await db.select().from(shop).where(eq(shop.id, 'shop-123'))
+      expect(unchangedShop.paymentConnected).toBe(false)
+      expect(unchangedShop.mollieAccountId).toBeNull()
     })
   })
 })

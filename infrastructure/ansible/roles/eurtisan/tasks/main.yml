@@ -1133,6 +1133,19 @@
                   certResolver: letsencrypt
                 service: eurtisan-staging-garage
 
+              # Provider webhooks: bypass the staging IP whitelist so Mollie and
+              # Sendcloud test callbacks reach the app. Mollie handlers fetch
+              # authoritative state from Mollie, Sendcloud verifies HMAC-SHA256,
+              # and Brevo rejects requests when no staging webhook token is set.
+              eurtisan-staging-webhooks:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/api/webhooks/`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-app
+
               # Grafana UI: behind the same IP whitelist as the app.
               # Higher priority so it matches before the catch-all app route.
               # DO NOT strip /grafana: Grafana with serve_from_sub_path=true
