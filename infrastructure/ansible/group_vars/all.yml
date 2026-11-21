@@ -1,5 +1,5 @@
 # ── Repository / Git ────────────────────────────────────────────────────
-# GitHub is the canonical source. Codeberg is maintained as a mirror.
+# GitHub is the canonical source.
 repository_url: "git@github.com:JoeriKaiser/eurtisan.git"
 repository_deploy_key_path: "/root/.ssh/eurtisan_github_deploy"
 

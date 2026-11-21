@@ -30,7 +30,6 @@ e2e/screenshots
 BUSINESS.md
 infrastructure/ansible/.vault_pass
 docker-compose.override.yml
-infrastructure/codeberg-runner/.runner-env
 infrastructure/woodpecker/.woodpecker-env
 !.agents/
 scratch/

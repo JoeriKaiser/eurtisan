@@ -1,7 +1,7 @@
 # Branch protection (GitHub)
 
 GitHub is the canonical repository and the required review/CI checks should be
-configured there. Codeberg is a read-only mirror for source availability.
+configured there.
 
 Configure on the repository **Settings → Branches → Branch protection rules** for `main`.
 

@@ -53,4 +53,4 @@ Creates 5 `@eurtisan.local` test users, 6 shops (2 active: `the-forge` in Lyon, 
 
 ## Repository Source
 
-GitHub (`https://github.com/JoeriKaiser/eurtisan`) is the canonical repository and runs validation-only CI. VPS hosts pull metadata via a host-specific read-only deploy key (`/root/.ssh/eurtisan_github_deploy`). Codeberg is a source mirror.
+GitHub (`https://github.com/JoeriKaiser/eurtisan`) is the canonical repository and runs validation-only CI. VPS hosts pull metadata via a host-specific read-only deploy key (`/root/.ssh/eurtisan_github_deploy`).
