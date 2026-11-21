@@ -179,6 +179,17 @@ export interface PublicStagingCheckResult {
   detail: string
 }
 
+function forbidsHtmlCaching(cacheControlHeader: string | null): boolean {
+  if (!cacheControlHeader) return false
+  const directives = new Set(
+    cacheControlHeader
+      .split(',')
+      .map((part) => part.trim().toLowerCase())
+      .filter(Boolean),
+  )
+  return directives.has('private') && directives.has('no-store')
+}
+
 export async function runPublicStagingChecks(input: {
   baseUrl: string
   expectedRelease: string
@@ -227,7 +238,7 @@ export async function runPublicStagingChecks(input: {
       if (!cspNonce || htmlNonces.length === 0 || htmlNonces.some((nonce) => nonce !== cspNonce)) {
         failures.push(`response ${index + 1} has mismatched CSP nonces`)
       }
-      if (!response.headers.get('cache-control')?.includes('private, no-store')) {
+      if (!forbidsHtmlCaching(response.headers.get('cache-control'))) {
         failures.push(`response ${index + 1} permits HTML caching`)
       }
     })

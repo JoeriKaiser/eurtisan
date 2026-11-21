@@ -242,6 +242,18 @@
     - "{{ backup_state_directory }}"
   tags: [backup]
 
+- name: Ensure logical backup and state files belong to eurtisan-backup
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: eurtisan-backup
+    group: eurtisan-backup
+    recurse: true
+  loop:
+    - "{{ backup_directory }}"
+    - "{{ backup_state_directory }}"
+  tags: [backup]
+
 - name: Create pgBackRest repository and spool directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -366,7 +378,10 @@
   ansible.builtin.cron:
     name: "Eurtisan database backup"
     state: absent
-    user: eurtisan-backup
+    user: "{{ item }}"
+  loop:
+    - root
+    - eurtisan-backup
   tags: [backup]
 
 - name: Write pgBackRest Compose override

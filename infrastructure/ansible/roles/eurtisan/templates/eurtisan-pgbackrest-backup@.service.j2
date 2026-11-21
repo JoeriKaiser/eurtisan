@@ -8,6 +8,7 @@ Type=oneshot
 User=eurtisan-backup
 Group=eurtisan-backup
 UMask=0027
+Environment=DOCKER_CONFIG=/tmp/docker-config
 ExecStart=/opt/eurtisan/pgbackrest-backup.sh %i
 TimeoutStartSec=6h
 Nice=10

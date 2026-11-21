@@ -7,6 +7,7 @@ After=docker.service
 Type=oneshot
 User=eurtisan-backup
 Group=eurtisan-backup
+Environment=DOCKER_CONFIG=/tmp/docker-config
 ExecStart=/opt/eurtisan/backup-status.sh
 TimeoutStartSec=5m
 NoNewPrivileges=true
