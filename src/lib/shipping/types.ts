@@ -9,10 +9,14 @@
 // Address & package types
 // ---------------------------------------------------------------------------
 
-/** Physical address used for origin and destination in rate requests. */
+/** Physical address used for origin and destination in rate and label requests. */
 export interface ShippingAddress {
+  /** Contact or recipient full name when available. */
+  name?: string
   /** Full street address including house number. */
   street: string
+  /** Optional apartment, suite, or additional address line. */
+  addressLine2?: string
   /** City name. */
   city: string
   /** Postal / ZIP code. */
@@ -23,6 +27,10 @@ export interface ShippingAddress {
   company?: string
   /** Optional state or province. */
   state?: string
+  /** Optional contact email for carrier notifications. */
+  email?: string
+  /** Optional contact phone number for carrier delivery coordination. */
+  phone?: string
 }
 
 /** Package dimensions and weight for rate calculation. */

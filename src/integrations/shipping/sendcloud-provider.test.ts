@@ -1,24 +1,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Package, ShippingAddress } from '#/lib/shipping-provider'
-import { SendcloudError, SendcloudProvider } from './sendcloud-provider'
+import { SendcloudProvider, splitStreetAndHouseNumber } from './sendcloud-provider'
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
 const origin: ShippingAddress = {
-  street: 'Hauptstrasse 1',
-  city: 'Berlin',
-  postalCode: '10115',
-  country: 'DE',
+  name: 'The Forge',
+  company: 'The Forge',
+  street: '12 Rue de la Republique',
+  city: 'Lyon',
+  postalCode: '69001',
+  country: 'FR',
+  email: 'creator@eurtisan.local',
 }
 
 const destination: ShippingAddress = {
-  street: '1 Rue de Rivoli',
+  name: 'Staging Walkthrough',
+  street: '10 Rue de Rivoli',
   city: 'Paris',
   postalCode: '75001',
   country: 'FR',
+  email: 'buyer@example.invalid',
+  phone: '+33142685500',
 }
 
 const pkg: Package = {
@@ -41,37 +47,80 @@ function makeFetch(response: unknown, status = 200): typeof fetch {
 // Tests
 // ---------------------------------------------------------------------------
 
+describe('splitStreetAndHouseNumber', () => {
+  it('splits leading house numbers (FR/BE/UK)', () => {
+    expect(splitStreetAndHouseNumber('10 Rue de Rivoli')).toEqual({
+      addressLine1: 'Rue de Rivoli',
+      houseNumber: '10',
+    })
+    expect(splitStreetAndHouseNumber('10bis Rue de Rivoli')).toEqual({
+      addressLine1: 'Rue de Rivoli',
+      houseNumber: '10bis',
+    })
+  })
+
+  it('splits trailing house numbers (DE/NL/AT)', () => {
+    expect(splitStreetAndHouseNumber('Hauptstrasse 1')).toEqual({
+      addressLine1: 'Hauptstrasse',
+      houseNumber: '1',
+    })
+    expect(splitStreetAndHouseNumber('Insulindelaan 115A')).toEqual({
+      addressLine1: 'Insulindelaan',
+      houseNumber: '115A',
+    })
+  })
+
+  it('keeps street intact when no house number is present', () => {
+    expect(splitStreetAndHouseNumber('Place de la Concorde')).toEqual({
+      addressLine1: 'Place de la Concorde',
+      houseNumber: '',
+    })
+  })
+})
+
 describe('SendcloudProvider', () => {
   describe('getRates', () => {
-    it('returns rates mapped from Sendcloud v2 array countries and excludes unstamped letter', async () => {
+    it('calls Sendcloud v3 shipping-options, excludes sendcloud/test_carrier/unpriced options, and sorts cheapest first', async () => {
       const fetchFn = makeFetch({
-        shipping_methods: [
+        data: [
           {
-            id: 8,
+            code: 'sendcloud:letter',
             name: 'Unstamped letter',
-            carrier: 'sendcloud',
-            min_weight: '0.001',
-            max_weight: '1000.000',
-            service_point_input: 'none',
-            countries: [{ id: 8, iso_2: 'FR', name: 'France', price: 0, currency: 'EUR' }],
+            carrier: { code: 'sendcloud', name: 'Sendcloud' },
+            functionalities: { last_mile: 'home_delivery' },
+            requirements: { is_service_point_required: false },
+            quotes: [{ price: { total: { value: '0.00', currency: 'EUR' } }, lead_time: 24 }],
           },
           {
-            id: 366,
-            name: 'Colissimo Home 0.25-0.5kg',
-            carrier: 'colissimo',
-            min_weight: '0.251',
-            max_weight: '0.501',
-            service_point_input: 'none',
-            countries: [{ id: 8, iso_2: 'FR', name: 'France', price: 8.94, currency: 'EUR' }],
+            code: 'test_carrier:national',
+            name: 'Test Carrier National Shipping Method',
+            carrier: { code: 'test_carrier', name: 'Test Carrier' },
+            functionalities: { last_mile: 'home_delivery' },
+            requirements: { is_service_point_required: false },
+            quotes: [{ price: { total: { value: '5.00', currency: 'EUR' } }, lead_time: 24 }],
           },
           {
-            id: 372,
-            name: 'Colissimo Service Point 0.25-0.5kg',
-            carrier: 'colissimo',
-            min_weight: '0.251',
-            max_weight: '0.501',
-            service_point_input: 'required',
-            countries: [{ id: 8, iso_2: 'FR', name: 'France', price: 7.04, currency: 'EUR' }],
+            code: 'colissimo:home/fr',
+            name: 'Colissimo Home',
+            carrier: { code: 'colissimo', name: 'Colissimo' },
+            functionalities: { last_mile: 'home_delivery' },
+            requirements: { is_service_point_required: false },
+            quotes: [{ price: { total: { value: '8.94', currency: 'EUR' } }, lead_time: 48 }],
+          },
+          {
+            code: 'colissimo:post-office',
+            name: 'Colissimo Service Point',
+            carrier: { code: 'colissimo', name: 'Colissimo' },
+            functionalities: { last_mile: 'locker_or_service_point' },
+            requirements: { is_service_point_required: true },
+            quotes: [{ price: { total: { value: '7.04', currency: 'EUR' } }, lead_time: 48 }],
+          },
+          {
+            code: 'dpd:unpriced',
+            name: 'DPD Unpriced',
+            carrier: { code: 'dpd', name: 'DPD' },
+            functionalities: { last_mile: 'home_delivery' },
+            requirements: { is_service_point_required: false },
           },
         ],
       })
@@ -83,30 +132,52 @@ describe('SendcloudProvider', () => {
       })
 
       const rates = await provider.getRates(origin, destination, pkg)
+
+      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
+      expect(String(calls[0][0])).toBe('https://panel.sendcloud.sc/api/v3/shipping-options')
+      const reqBody = JSON.parse((calls[0][1] as { body: string }).body)
+      expect(reqBody).toEqual({
+        from_country_code: 'FR',
+        to_country_code: 'FR',
+        parcels: [{ weight: { value: '0.500', unit: 'kg' } }],
+        calculate_quotes: true,
+      })
 
       expect(rates).toHaveLength(2)
-      expect(rates[0].rateId).toBe('372')
-      expect(rates[0].carrier).toBe('colissimo')
-      expect(rates[0].priceCents).toBe(704)
-      expect(rates[0].supportsServicePoint).toBe(true)
-      expect(rates[1].rateId).toBe('366')
-      expect(rates[1].carrier).toBe('colissimo')
-      expect(rates[1].priceCents).toBe(894)
-      expect(rates[1].supportsServicePoint).toBe(false)
+      expect(rates[0]).toMatchObject({
+        rateId: 'colissimo:post-office',
+        carrier: 'colissimo',
+        serviceName: 'Colissimo Service Point',
+        priceCents: 704,
+        estimatedDays: { min: 2, max: 3 },
+        supportsServicePoint: true,
+      })
+      expect(rates[1]).toMatchObject({
+        rateId: 'colissimo:home/fr',
+        carrier: 'colissimo',
+        serviceName: 'Colissimo Home',
+        priceCents: 894,
+        estimatedDays: { min: 2, max: 3 },
+        supportsServicePoint: false,
+      })
     })
 
-    it('filters out methods that do not support the destination country', async () => {
+    it('deduplicates repeated shipping option codes by keeping the cheapest quote', async () => {
       const fetchFn = makeFetch({
-        shipping_methods: [
+        data: [
           {
-            id: 123,
-            name: 'PostNL Standard',
-            carrier: 'PostNL',
-            min_weight: '0.000',
-            max_weight: '10.000',
-            countries: {
-              NL: { id: 1234, name: 'Netherlands', price: 6.95, currency: 'EUR' },
-            },
+            code: 'colissimo:home/fr',
+            name: 'Colissimo Home',
+            carrier: { code: 'colissimo', name: 'Colissimo' },
+            functionalities: { last_mile: 'home_delivery' },
+            quotes: [{ price: { total: { value: '10.00', currency: 'EUR' } } }],
+          },
+          {
+            code: 'colissimo:home/fr',
+            name: 'Colissimo Home',
+            carrier: { code: 'colissimo', name: 'Colissimo' },
+            functionalities: { last_mile: 'home_delivery' },
+            quotes: [{ price: { total: { value: '8.94', currency: 'EUR' } } }],
           },
         ],
       })
@@ -118,24 +189,12 @@ describe('SendcloudProvider', () => {
       })
 
       const rates = await provider.getRates(origin, destination, pkg)
-      expect(rates).toHaveLength(0)
+      expect(rates).toHaveLength(1)
+      expect(rates[0].priceCents).toBe(894)
     })
 
-    it('filters out methods incompatible with package weight', async () => {
-      const fetchFn = makeFetch({
-        shipping_methods: [
-          {
-            id: 123,
-            name: 'PostNL Standard',
-            carrier: 'PostNL',
-            min_weight: '0.000',
-            max_weight: '0.100',
-            countries: {
-              FR: { id: 1234, name: 'France', price: 6.95, currency: 'EUR' },
-            },
-          },
-        ],
-      })
+    it('returns empty array when Sendcloud v3 returns no options for the route', async () => {
+      const fetchFn = makeFetch({ data: [] })
 
       const provider = new SendcloudProvider({
         publicKey: 'pk',
@@ -153,17 +212,24 @@ describe('SendcloudProvider', () => {
       vi.unstubAllEnvs()
     })
 
-    it('creates a parcel and unwraps wrapped Sendcloud v2 parcel + array normal_printer response', async () => {
+    it('announces a shipment via Sendcloud API v3 and parses documents label URL', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({
-        parcel: {
-          id: 987,
-          tracking_number: '3SABC1234567',
-          label: {
-            normal_printer: ['https://sendcloud.example.com/label-a4.pdf'],
-            label_printer: 'https://sendcloud.example.com/label-thermal.pdf',
-          },
-          status: { message: 'Ready to send' },
+        data: {
+          id: 'shipment-uuid-1',
+          carrier: { code: 'colissimo', name: 'Colissimo' },
+          parcels: [
+            {
+              id: 987654,
+              tracking_number: '3SABC1234567',
+              documents: [
+                {
+                  type: 'label',
+                  link: 'https://panel.sendcloud.sc/api/v3/parcels/987654/documents/label',
+                },
+              ],
+            },
+          ],
         },
       })
 
@@ -177,33 +243,66 @@ describe('SendcloudProvider', () => {
         origin,
         destination,
         package: pkg,
-        carrierService: '123',
+        carrierService: 'colissimo:home/fr',
         reference: 'order-uuid-1',
+        declaredValueCents: 4294,
       })
 
-      expect(label.labelId).toBe('987')
-      expect(label.trackingNumber).toBe('3SABC1234567')
-      expect(label.labelUrl).toBe('https://sendcloud.example.com/label-thermal.pdf')
-      expect(label.carrier).toBe('sendcloud')
+      expect(label).toEqual({
+        labelId: '987654',
+        externalParcelId: '987654',
+        trackingNumber: '3SABC1234567',
+        labelUrl: 'https://panel.sendcloud.sc/api/v3/parcels/987654/documents/label',
+        carrier: 'colissimo',
+      })
 
       const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
-      const parcelCall = calls.find((call) => String(call[0]).includes('/parcels'))
-      expect(parcelCall).toBeDefined()
-      const requestInit = parcelCall?.[1] as { body: string }
-      const body = JSON.parse(requestInit.body)
-      expect(body.parcel.request_label).toBe(true)
-      expect(body.parcel.shipment.id).toBe(123)
-      expect(body.parcel.order_number).toBe('order-uuid-1')
-      expect(body.parcel.weight).toBe('0.500')
+      expect(String(calls[0][0])).toBe('https://panel.sendcloud.sc/api/v3/shipments/announce')
+      const body = JSON.parse((calls[0][1] as { body: string }).body)
+      expect(body.ship_with).toEqual({
+        type: 'shipping_option_code',
+        properties: { shipping_option_code: 'colissimo:home/fr' },
+      })
+      expect(body.from_address).toMatchObject({
+        name: 'The Forge',
+        address_line_1: 'Rue de la Republique',
+        house_number: '12',
+        postal_code: '69001',
+        city: 'Lyon',
+        country_code: 'FR',
+        email: 'creator@eurtisan.local',
+      })
+      expect(body.to_address).toMatchObject({
+        name: 'Staging Walkthrough',
+        address_line_1: 'Rue de Rivoli',
+        house_number: '10',
+        postal_code: '75001',
+        city: 'Paris',
+        country_code: 'FR',
+        email: 'buyer@example.invalid',
+        phone_number: '+33142685500',
+      })
+      expect(body.order_number).toBe('order-uuid-1')
+      expect(body.total_order_price).toEqual({ currency: 'EUR', value: '42.94' })
+      expect(body.parcels).toEqual([{ weight: { value: '0.500', unit: 'kg' } }])
     })
 
-    it('includes to_service_point when pickup point is provided', async () => {
+    it('includes to_service_point object when pickup point is provided', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({
-        id: 987,
-        tracking_number: '3SABC1234567',
-        label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
-        status: { message: 'Label created' },
+        data: {
+          id: 'shipment-uuid-2',
+          parcels: [
+            {
+              id: 987,
+              tracking_number: '3SABC1234567',
+              label: {
+                normal_printer: ['https://sendcloud.example.com/label-a4.pdf'],
+                label_printer: 'https://sendcloud.example.com/label-thermal.pdf',
+              },
+            },
+          ],
+        },
       })
 
       const provider = new SendcloudProvider({
@@ -212,11 +311,11 @@ describe('SendcloudProvider', () => {
         fetch: fetchFn,
       })
 
-      await provider.createLabel({
+      const label = await provider.createLabel({
         origin,
         destination,
         package: pkg,
-        carrierService: '123',
+        carrierService: 'colissimo:post-office',
         reference: 'order-uuid-1',
         pickupPoint: {
           id: 'SP12345',
@@ -225,25 +324,19 @@ describe('SendcloudProvider', () => {
           postalCode: '75001',
           city: 'Paris',
           country: 'FR',
+          carrier: 'colissimo',
         },
       })
 
+      expect(label.labelUrl).toBe('https://sendcloud.example.com/label-thermal.pdf')
       const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
-      const parcelCall = calls.find((call) => String(call[0]).includes('/parcels'))
-      expect(parcelCall).toBeDefined()
-      const requestInit = parcelCall?.[1] as { body: string }
-      const body = JSON.parse(requestInit.body)
-      expect(body.parcel.to_service_point).toBe('SP12345')
+      const body = JSON.parse((calls[0][1] as { body: string }).body)
+      expect(body.to_service_point).toEqual({ id: 'SP12345' })
     })
 
-    it('sends the declared order value for customs', async () => {
+    it('rejects incomplete origin address before calling Sendcloud', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
-      const fetchFn = makeFetch({
-        id: 987,
-        tracking_number: '3SABC1234567',
-        label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
-        status: { message: 'Label created' },
-      })
+      const fetchFn = makeFetch({})
 
       const provider = new SendcloudProvider({
         publicKey: 'pk',
@@ -251,27 +344,36 @@ describe('SendcloudProvider', () => {
         fetch: fetchFn,
       })
 
-      await provider.createLabel({
-        origin,
-        destination,
-        package: pkg,
-        carrierService: '123',
-        reference: 'order-uuid-1',
-        declaredValueCents: 1234,
+      await expect(
+        provider.createLabel({
+          origin: { ...origin, street: '   ' },
+          destination,
+          package: pkg,
+          carrierService: 'colissimo:home/fr',
+        }),
+      ).rejects.toMatchObject({
+        name: 'SendcloudError',
+        statusCode: 400,
       })
 
-      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
-      const parcelCall = calls.find((call) => String(call[0]).includes('/parcels'))
-      expect(parcelCall).toBeDefined()
-      const requestInit = parcelCall?.[1] as { body: string }
-      const body = JSON.parse(requestInit.body)
-      expect(body.parcel.total_order_value).toBe('12.34')
-      expect(body.parcel.total_order_value_currency).toBe('EUR')
+      expect(fetchFn).not.toHaveBeenCalled()
     })
 
-    it('throws SendcloudError on API failure', async () => {
+    it('parses Sendcloud v3 errors array into SendcloudError.sendcloudMessage', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
-      const fetchFn = makeFetch({ error: { message: 'Invalid shipment id' } }, 400)
+      const fetchFn = makeFetch(
+        {
+          errors: [
+            {
+              status: '400',
+              code: 'validation_error',
+              detail: 'Invalid postal code',
+              source: { pointer: '/to_address/postal_code' },
+            },
+          ],
+        },
+        400,
+      )
 
       const provider = new SendcloudProvider({
         publicKey: 'pk',
@@ -284,21 +386,31 @@ describe('SendcloudProvider', () => {
           origin,
           destination,
           package: pkg,
-          carrierService: '123',
+          carrierService: 'colissimo:home/fr',
           reference: 'order-uuid-1',
         }),
-      ).rejects.toBeInstanceOf(SendcloudError)
+      ).rejects.toMatchObject({
+        name: 'SendcloudError',
+        statusCode: 400,
+        sendcloudMessage: '/to_address/postal_code: Invalid postal code',
+      })
     })
 
-    it('uses pinned unstamped letter method id when force unstamped letter is enabled', async () => {
+    it('pins shipping_option_code to sendcloud:letter when force unstamped letter is enabled', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
-      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID', '8')
 
       const fetchFn = makeFetch({
-        id: 987,
-        tracking_number: '3SABC1234567',
-        label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
-        status: { message: 'Label created' },
+        data: {
+          id: 'shipment-uuid-3',
+          carrier: { code: 'sendcloud' },
+          parcels: [
+            {
+              id: 987,
+              tracking_number: '',
+              documents: [{ type: 'label', link: 'https://sendcloud.example.com/unstamped.pdf' }],
+            },
+          ],
+        },
       })
 
       const provider = new SendcloudProvider({
@@ -311,69 +423,22 @@ describe('SendcloudProvider', () => {
         origin,
         destination,
         package: pkg,
-        carrierService: '123',
+        carrierService: 'colissimo:home/fr',
         reference: 'order-uuid-1',
       })
 
       const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
       expect(calls).toHaveLength(1)
-      expect(String(calls[0][0])).toContain('/parcels')
+      expect(String(calls[0][0])).toBe('https://panel.sendcloud.sc/api/v3/shipments/announce')
       const body = JSON.parse((calls[0][1] as { body: string }).body)
-      expect(body.parcel.shipment.id).toBe(8)
+      expect(body.ship_with.properties.shipping_option_code).toBe('sendcloud:letter')
     })
 
-    it('discovers unstamped letter method when force unstamped letter is enabled and id is unset', async () => {
+    it('fails closed without announcing a shipment when unstamped letter override is invalid', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
-      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID', '')
+      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE', 'colissimo:home/fr')
 
-      const fetchFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: async () => ({
-            shipping_methods: [{ id: 8, name: 'Unstamped letter', carrier: 'sendcloud' }],
-          }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: async () => ({
-            id: 987,
-            tracking_number: '3SABC1234567',
-            label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
-            status: { message: 'Label created' },
-          }),
-        } as Response)
-
-      const provider = new SendcloudProvider({
-        publicKey: 'pk',
-        secretKey: 'sk',
-        fetch: fetchFn,
-      })
-
-      await provider.createLabel({
-        origin,
-        destination,
-        package: pkg,
-        carrierService: '123',
-        reference: 'order-uuid-1',
-      })
-
-      expect(fetchFn).toHaveBeenCalledTimes(2)
-      const parcelBody = JSON.parse((fetchFn.mock.calls[1][1] as { body: string }).body)
-      expect(parcelBody.parcel.shipment.id).toBe(8)
-    })
-
-    it('fails closed without creating a parcel when force unstamped letter cannot resolve a method', async () => {
-      vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
-      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID', '')
-
-      const fetchFn = makeFetch({
-        shipping_methods: [{ id: 123, name: 'PostNL Standard', carrier: 'PostNL' }],
-      })
+      const fetchFn = makeFetch({})
 
       const provider = new SendcloudProvider({
         publicKey: 'pk',
@@ -386,7 +451,7 @@ describe('SendcloudProvider', () => {
           origin,
           destination,
           package: pkg,
-          carrierService: '123',
+          carrierService: 'colissimo:home/fr',
           reference: 'order-uuid-1',
         }),
       ).rejects.toMatchObject({
@@ -394,26 +459,37 @@ describe('SendcloudProvider', () => {
         statusCode: 503,
       })
 
-      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
-      expect(calls.some((call) => String(call[0]).includes('/parcels'))).toBe(false)
+      expect(fetchFn).not.toHaveBeenCalled()
     })
   })
 
   describe('trackShipment', () => {
-    it('returns tracking info mapped from Sendcloud parcels', async () => {
+    it('calls Sendcloud v3 parcel tracking endpoint and returns chronological events and mapped status', async () => {
       const fetchFn = makeFetch({
-        parcels: [
-          {
-            id: 987,
-            tracking_number: '3SABC1234567',
-            status: { message: 'Delivered' },
-            status_history: [
-              { message: 'Label created', timestamp: '2026-06-01T10:00:00Z' },
-              { message: 'In transit', timestamp: '2026-06-02T10:00:00Z' },
-              { message: 'Delivered', timestamp: '2026-06-03T10:00:00Z' },
-            ],
-          },
-        ],
+        data: {
+          tracking_numbers: [{ tracking_number: '3SABC1234567', carrier: 'colissimo' }],
+          details: { expected_delivery_date: '2026-06-03' },
+          events: [
+            {
+              timestamp: '2026-06-03T10:00:00Z',
+              phase: 'delivered',
+              exception: 'none',
+              description: 'Delivered to recipient',
+            },
+            {
+              timestamp: '2026-06-02T10:00:00Z',
+              phase: 'in_transit',
+              exception: 'none',
+              description: 'In transit',
+            },
+            {
+              timestamp: '2026-06-01T10:00:00Z',
+              phase: 'announced',
+              exception: 'none',
+              description: 'Label created',
+            },
+          ],
+        },
       })
 
       const provider = new SendcloudProvider({
@@ -424,10 +500,16 @@ describe('SendcloudProvider', () => {
 
       const info = await provider.trackShipment('3SABC1234567')
 
+      expect(String((fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][0])).toBe(
+        'https://panel.sendcloud.sc/api/v3/parcels/tracking/3SABC1234567',
+      )
       expect(info.trackingNumber).toBe('3SABC1234567')
+      expect(info.carrier).toBe('colissimo')
       expect(info.status).toBe('delivered')
+      expect(info.estimatedDelivery).toBe('2026-06-03')
       expect(info.events).toHaveLength(3)
       expect(info.events[0].status).toBe('Label created')
+      expect(info.events[2].status).toBe('Delivered to recipient')
     })
   })
 
@@ -472,16 +554,18 @@ describe('SendcloudProvider', () => {
   })
 
   describe('getServicePointMethods', () => {
-    it('returns methods available for a service point', async () => {
+    it('queries Sendcloud v3 shipping-options with to_service_point_id and returns v3 option codes', async () => {
       const fetchFn = makeFetch({
-        shipping_methods: [
+        data: [
           {
-            id: 123,
-            name: 'PostNL Service Point',
-            carrier: 'PostNL',
-            min_weight: '0.000',
-            max_weight: '10.000',
-            countries: {},
+            code: 'colissimo:post-office',
+            name: 'Colissimo Service Point',
+            carrier: { code: 'colissimo', name: 'Colissimo' },
+          },
+          {
+            code: 'sendcloud:letter',
+            name: 'Unstamped letter',
+            carrier: { code: 'sendcloud', name: 'Sendcloud' },
           },
         ],
       })
@@ -492,10 +576,15 @@ describe('SendcloudProvider', () => {
         fetch: fetchFn,
       })
 
-      const methods = await provider.getServicePointMethods('SP1')
+      const methods = await provider.getServicePointMethods('12345')
 
+      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
+      expect(String(calls[0][0])).toBe('https://panel.sendcloud.sc/api/v3/shipping-options')
+      expect(JSON.parse((calls[0][1] as { body: string }).body)).toEqual({
+        to_service_point_id: 12345,
+      })
       expect(methods).toHaveLength(1)
-      expect(methods[0].rateId).toBe('123')
+      expect(methods[0].rateId).toBe('colissimo:post-office')
       expect(methods[0].supportsServicePoint).toBe(true)
     })
   })

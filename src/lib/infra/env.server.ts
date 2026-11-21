@@ -255,17 +255,14 @@ export function getSendcloudWebhookSecret(): string | undefined {
 }
 
 /**
- * Explicit Unstamped letter shipping method ID for dev/staging.
- * If unset, the provider discovers it at runtime via GET /shipping_methods.
+ * Explicit Sendcloud v3 Unstamped letter shipping option code for dev/staging.
+ * Defaults to "sendcloud:letter" when unset.
  */
-export function getSendcloudUnstampedLetterMethodId(): number | undefined {
+export function getSendcloudUnstampedLetterOptionCode(): string | undefined {
   if (typeof process !== 'undefined') {
-    const raw = process.env.SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID
-    if (raw) {
-      const parsed = Number.parseInt(raw, 10)
-      if (!Number.isNaN(parsed) && parsed > 0) {
-        return parsed
-      }
+    const raw = process.env.SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE
+    if (raw !== undefined) {
+      return raw.trim()
     }
   }
   return undefined
