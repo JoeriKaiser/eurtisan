@@ -44,7 +44,7 @@ test.describe('Authenticated review actions', () => {
     const reviewsHeading = page.getByRole('heading', { name: /^Reviews$/ })
     await expect(reviewsHeading).toBeVisible({ timeout: 10000 })
 
-    const firstReview = page.locator('article').first()
+    const firstReview = page.locator('article').filter({ hasNotText: 'Customer User' }).first()
     const reportButton = firstReview.getByRole('button', { name: /report review/i })
     await expect(reportButton).toBeVisible()
     await reportButton.click()

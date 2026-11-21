@@ -80,9 +80,9 @@ test.describe('Search', () => {
 
     await expect(page.getByRole('heading', { name: /results for/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /no results found/i })).toBeVisible()
-    const clearLink = page.getByRole('link', { name: /clear filters/i })
-    await expect(clearLink).toBeVisible()
-    await clearLink.click()
+    const backLink = page.getByRole('link', { name: /back to discovery/i }).first()
+    await expect(backLink).toBeVisible()
+    await backLink.click()
     await page.waitForURL((url) => url.pathname.endsWith('/search') && url.search === '')
     await expect(page.getByRole('heading', { name: 'Explore the market' })).toBeVisible()
   })

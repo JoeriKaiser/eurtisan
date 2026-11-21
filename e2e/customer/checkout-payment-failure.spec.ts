@@ -10,7 +10,10 @@
  * - Relies on `completeCheckout` (single-shop cart, first shipping option).
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { eq } from 'drizzle-orm'
+import { inventoryReservation } from '../../src/db/schema'
+import { db } from '../db'
 import { addFirstProductToCart, emptyCart } from '../fixtures/cart'
 import { completeCheckout } from '../fixtures/checkout'
 import { sendMollieWebhook } from '../fixtures/orders'
@@ -31,10 +34,17 @@ test.describe('Checkout payment failure states', () => {
       await emptyCart(page)
       await addFirstProductToCart(page)
 
-      const { mockPaymentId } = await completeCheckout(page)
+      const { platformOrderId, mockPaymentId } = await completeCheckout(page)
 
       // The success page is polling while the order is pending_payment.
       await expect(page.getByRole('heading', { name: /confirming payment/i })).toBeVisible()
+
+      // Orders stay in pending_payment while their inventory reservation is active so
+      // buyers can retry payment; expire the reservation to exercise terminal cancellation.
+      await db
+        .update(inventoryReservation)
+        .set({ expiresAt: new Date(Date.now() - 60_000) })
+        .where(eq(inventoryReservation.platformOrderId, platformOrderId))
 
       const webhookResponse = await sendMollieWebhook(baseURL, mockPaymentId, paymentStatus)
       expect(webhookResponse.status).toBe(200)
