@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
 import { shop } from '#/db/schema'
 import { signMollieState, verifyMollieState } from '#/lib/auth-utils.server'
@@ -32,6 +32,10 @@ describe('Mollie Connect OAuth Callback', () => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     await clearTestTables()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   describe('Cryptographic State Helpers', () => {
@@ -256,6 +260,9 @@ describe('Mollie Connect OAuth Callback', () => {
       })
 
       vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('BETTER_AUTH_SECRET', 'test-production-auth-secret-value')
+      vi.stubEnv('MOLLIE_CLIENT_ID', '')
+      vi.stubEnv('MOLLIE_CLIENT_SECRET', '')
 
       const state = signMollieState('shop-123', 'user-owner')
       const req = new Request(
