@@ -302,6 +302,24 @@ function mapV3TrackingStatus(event?: SendcloudV3TrackingEvent): string {
   return phase || 'registered'
 }
 
+const RESERVED_CARRIER_EMAIL_SUFFIXES = ['.local', '.invalid', '.localhost', '.test', '.example']
+const RESERVED_CARRIER_EMAIL_DOMAINS = new Set([
+  'localhost',
+  'example.com',
+  'example.org',
+  'example.net',
+])
+
+function isSendableCarrierEmail(email?: string): email is string {
+  const trimmed = email?.trim()
+  if (!trimmed) return false
+  const atIndex = trimmed.lastIndexOf('@')
+  if (atIndex <= 0 || atIndex === trimmed.length - 1) return false
+  const domain = trimmed.slice(atIndex + 1).toLowerCase()
+  if (RESERVED_CARRIER_EMAIL_DOMAINS.has(domain)) return false
+  return !RESERVED_CARRIER_EMAIL_SUFFIXES.some((suffix) => domain.endsWith(suffix))
+}
+
 function buildV3Address(address: ShippingAddress, defaultName: string): Record<string, unknown> {
   const { addressLine1, houseNumber } = splitStreetAndHouseNumber(address.street)
   const payload: Record<string, unknown> = {
@@ -319,7 +337,7 @@ function buildV3Address(address: ShippingAddress, defaultName: string): Record<s
   if (address.addressLine2?.trim()) {
     payload.address_line_2 = address.addressLine2.trim()
   }
-  if (address.email?.trim()) {
+  if (isSendableCarrierEmail(address.email)) {
     payload.email = address.email.trim()
   }
   if (address.phone?.trim()) {

@@ -47,6 +47,31 @@ describe('renderTemplate: order_confirmation', () => {
     expect(result.text).toContain('No items')
   })
 
+  it('renders seller-facing copy and omits seller disclosure block when recipientRole is seller', async () => {
+    const result = await renderTemplate('order_confirmation', {
+      recipientRole: 'seller',
+      orderNumber: 'ORD-789',
+      buyerName: 'Creator Alice',
+      shopName: 'The Forge',
+      items: [{ name: 'Ceramic Mug', quantity: 1, price: '€34.00' }],
+      total: '€34.00',
+      orderUrl: 'https://eurtisan.example.com/studio/shop-1/orders/order-1',
+      sellerTradeName: 'The Forge',
+      sellerContactEmail: 'creator@theforge.eu',
+    })
+
+    expect(result.subject).toBe('New order #ORD-789: The Forge')
+    expect(result.html).toContain('New order received for The Forge')
+    expect(result.html).toContain('Open order in studio')
+    expect(result.html).not.toContain('Thank you for your order')
+    expect(result.html).not.toContain('Seller information')
+    expect(result.text).toContain('New order received for The Forge')
+    expect(result.text).toContain(
+      'Open order in studio: https://eurtisan.example.com/studio/shop-1/orders/order-1',
+    )
+    expect(result.text).not.toContain('Thank you for your order')
+  })
+
   it('escapes HTML in user-provided strings', async () => {
     const result = await renderTemplate('order_confirmation', {
       orderNumber: 'XSS-TEST',
