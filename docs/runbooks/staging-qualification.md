@@ -81,7 +81,7 @@ It validates HTTPS reachability (therefore DNS, certificate trust, and the TLS h
 ### Release and infrastructure
 
 - **`release.immutable-image`**: capture `docker image inspect`/registry evidence showing the running service and promotion candidate use the recorded digest; verify no host rebuild occurred.
-- **`release.public-config`**: match `VITE_APP_VERSION` and the public config digest; verify public Meilisearch credentials are search-only without recording the value.
+- **`release.public-config`**: match `VITE_APP_VERSION` and the public config digest; confirm no server secrets appear in `client-config.json`.
 - **`infrastructure.eu-region`**: owner confirms compute, PostgreSQL, object storage, backups, logs, and traces reside in approved EU regions.
 - **`infrastructure.dns-tls`**: validate A/AAAA/CNAME records, trusted certificate chain, SAN, expiry/renewal, HTTP redirect, TLS policy, and HSTS.
 
@@ -113,7 +113,7 @@ Each item requires provider-dashboard evidence and correlated safe application o
 - **Sendcloud:** rates/service point, label, tracking transitions, signed webhook rejection/acceptance, duplicate delivery, reconciliation.
 - **Email:** authorized staging provider or Mailpit policy, SPF/DKIM/DMARC for the eventual production sender, templates, bounce/complaint webhook, suppression and retention. Mailpit alone is not Brevo deliverability evidence.
 - **VIES:** valid/invalid/unavailable behavior using non-personal test identifiers and the configured fail policy.
-- **Meilisearch:** private master key, public search-only key scope, indexing/recovery, same-origin route, degraded behavior.
+- **Meilisearch:** server-only master key (minimum 16 bytes), indexing/recovery, rate-limited server function access, degraded behavior.
 - **S3/imgproxy:** signed upload, object isolation, transformed delivery, invalid signature, CORS, lifecycle/secondary backup, and same-origin route.
 
 ### Observability and alerts
