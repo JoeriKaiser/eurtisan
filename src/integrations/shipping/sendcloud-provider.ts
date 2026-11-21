@@ -1,26 +1,26 @@
-import '@tanstack/react-start/server-only'
-
 /**
- * Sendcloud shipping provider.
+ * Real Sendcloud API v3 shipping provider.
  *
- * Implements the ShippingProvider interface using Sendcloud API v2.
- * Supports live rates, label creation, tracking, service points, and webhook
- * signature verification.
+ * Implements the {@link ShippingProvider} interface using Sendcloud API v3
+ * (`https://panel.sendcloud.sc/api/v3`) for shipping options, synchronous
+ * shipment announcement, and parcel tracking, plus the Sendcloud Service Points
+ * API (`https://servicepoints.sendcloud.sc/api/v2`) for pickup point lookup.
  *
- * Environment safety:
- * - In non-production environments label creation is forced to the
- *   "Unstamped letter" method so no paid carrier labels are created.
- * - If SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID is not set, the provider discovers
- *   the method ID at runtime and caches it for the process lifetime.
+ * Staging / dev safety:
+ * - When `SENDCLOUD_FORCE_UNSTAMPED_LETTER` is enabled (true in staging/dev),
+ *   `createLabel` pins the shipping option code to `sendcloud:letter` (or a
+ *   validated `sendcloud:*` override from `SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE`)
+ *   and fails closed rather than falling back to a paid carrier option.
  */
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+
 import { shippingLabel } from '#/db/schema'
 import {
   getSendcloudForceUnstampedLetter,
   getSendcloudPublicKey,
   getSendcloudSecretKey,
-  getSendcloudUnstampedLetterMethodId,
+  getSendcloudUnstampedLetterOptionCode,
 } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 import type {
@@ -36,65 +36,118 @@ import type {
 } from '#/lib/shipping-provider'
 
 // ---------------------------------------------------------------------------
-// Types
+// Error type
 // ---------------------------------------------------------------------------
 
-export interface SendcloudProviderDeps {
-  /** Optional fetch implementation for testability. */
-  fetch?: typeof fetch
-  /** Optional database instance for inserting shipping_label rows. */
-  db?: PostgresJsDatabase<Record<string, never>>
-  /** Optional public key override. */
-  publicKey?: string
-  /** Optional secret key override. */
-  secretKey?: string
-}
-
 export class SendcloudError extends Error {
-  constructor(
-    message: string,
-    public readonly statusCode?: number,
-    public readonly sendcloudMessage?: string,
-  ) {
+  public readonly statusCode: number
+  public readonly sendcloudMessage?: string
+
+  constructor(message: string, statusCode = 500, sendcloudMessage?: string) {
     super(message)
     this.name = 'SendcloudError'
+    this.statusCode = statusCode
+    this.sendcloudMessage = sendcloudMessage
   }
 }
 
-interface SendcloudCountryRate {
-  id: number
-  name: string
-  price: number
-  currency?: string
-  iso_2?: string
-  iso_3?: string
-  lead_time_hours?: number | null
+// ---------------------------------------------------------------------------
+// Dependency injection options (for testing)
+// ---------------------------------------------------------------------------
+
+export interface SendcloudProviderDeps {
+  publicKey?: string
+  secretKey?: string
+  fetch?: typeof fetch
+  db?: PostgresJsDatabase<Record<string, never>>
 }
 
-interface SendcloudShippingMethod {
-  id: number
-  name: string
-  carrier: string
-  min_weight: string
-  max_weight: string
-  service_point_input?: string
-  countries: SendcloudCountryRate[] | Record<string, SendcloudCountryRate>
+// ---------------------------------------------------------------------------
+// Sendcloud API v3 & Service Points response shapes
+// ---------------------------------------------------------------------------
+
+interface SendcloudV3PriceAmount {
+  value?: string | number | null
+  currency?: string | null
 }
 
-interface SendcloudParcel {
-  id: number
+interface SendcloudV3Quote {
+  price?: {
+    total?: SendcloudV3PriceAmount | null
+  } | null
+  lead_time?: number | null
+}
+
+interface SendcloudV3ShippingOption {
+  code: string
+  name: string
+  carrier?: {
+    code?: string | null
+    name?: string | null
+  } | null
+  functionalities?: {
+    last_mile?: string | null
+  } | null
+  requirements?: {
+    is_service_point_required?: boolean | null
+  } | null
+  quotes?: SendcloudV3Quote[] | null
+}
+
+interface SendcloudV3ShippingOptionsResponse {
+  data?: SendcloudV3ShippingOption[]
+}
+
+interface SendcloudV3ParcelDocument {
+  type?: string | null
+  link?: string | null
+}
+
+interface SendcloudV3AnnouncedParcel {
+  id?: string | number | null
   tracking_number?: string | null
+  tracking_url?: string | null
+  documents?: SendcloudV3ParcelDocument[] | null
   label?: {
     normal_printer?: string | string[] | null
     label_printer?: string | null
     a4_printer?: string | null
   } | null
-  status?: {
-    message: string
-  } | null
 }
 
-type SendcloudParcelResponse = SendcloudParcel | { parcel: SendcloudParcel }
+interface SendcloudV3Shipment {
+  id?: string | number | null
+  carrier?: {
+    code?: string | null
+    name?: string | null
+  } | null
+  parcels?: SendcloudV3AnnouncedParcel[] | null
+}
+
+type SendcloudV3AnnounceResponse = SendcloudV3Shipment | { data: SendcloudV3Shipment }
+
+interface SendcloudV3TrackingEvent {
+  timestamp?: string | null
+  phase?: string | null
+  exception?: string | null
+  sub_status?: string | null
+  description?: string | null
+}
+
+interface SendcloudV3TrackingPayload {
+  tracking_numbers?: Array<{
+    tracking_number?: string | null
+    carrier?: string | null
+  }> | null
+  details?: {
+    expected_delivery_date?: string | null
+  } | null
+  events?: SendcloudV3TrackingEvent[] | null
+}
+
+type SendcloudV3TrackingResponse =
+  | SendcloudV3TrackingPayload
+  | { data: SendcloudV3TrackingPayload | null }
 
 interface SendcloudServicePoint {
   id: string | number
@@ -108,13 +161,173 @@ interface SendcloudServicePoint {
   carrier?: string
 }
 
+interface SendcloudErrorBody {
+  detail?: string
+  error?: {
+    message?: string
+  }
+  errors?: Array<{
+    code?: string
+    detail?: string
+    source?: {
+      pointer?: string
+    }
+  }>
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const SENDCLOUD_API_BASE = 'https://panel.sendcloud.sc/api/v2'
+const SENDCLOUD_V3_API_BASE = 'https://panel.sendcloud.sc/api/v3'
 const SENDCLOUD_SERVICE_POINTS_API_BASE = 'https://servicepoints.sendcloud.sc/api/v2'
+const DEFAULT_UNSTAMPED_LETTER_OPTION_CODE = 'sendcloud:letter'
 const REQUEST_TIMEOUT_MS = 15_000
+const EXCLUDED_CHECKOUT_CARRIERS = new Set(['sendcloud', 'test_carrier'])
+const SERVICE_POINT_LAST_MILE_MODES = new Set([
+  'service_point',
+  'locker',
+  'locker_or_service_point',
+])
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+export function splitStreetAndHouseNumber(street: string): {
+  addressLine1: string
+  houseNumber: string
+} {
+  const trimmed = street.trim()
+  if (!trimmed) {
+    return { addressLine1: '', houseNumber: '' }
+  }
+
+  // Leading house number (e.g. "10 Rue de Rivoli", "10bis Rue de Rivoli", "12-14 High Street")
+  const leadingMatch = /^(\d+[A-Za-z0-9/-]*)\s*,?\s+(.+)$/.exec(trimmed)
+  if (leadingMatch) {
+    return {
+      addressLine1: leadingMatch[2].trim(),
+      houseNumber: leadingMatch[1].trim(),
+    }
+  }
+
+  // Trailing house number (e.g. "Hauptstrasse 1", "Insulindelaan 115A", "Via Roma 12/B")
+  const trailingMatch = /^(.+?)\s+(\d+[A-Za-z0-9/-]*)$/.exec(trimmed)
+  if (trailingMatch) {
+    return {
+      addressLine1: trailingMatch[1].trim(),
+      houseNumber: trailingMatch[2].trim(),
+    }
+  }
+
+  return { addressLine1: trimmed, houseNumber: '' }
+}
+
+function estimateDaysFromLeadTime(leadTimeHours?: number | null): { min: number; max: number } {
+  if (typeof leadTimeHours !== 'number' || !Number.isFinite(leadTimeHours) || leadTimeHours <= 0) {
+    return { min: 2, max: 7 }
+  }
+  const minDays = Math.max(1, Math.ceil(leadTimeHours / 24))
+  return { min: minDays, max: Math.max(minDays + 1, minDays) }
+}
+
+function parseQuotePriceCents(option: SendcloudV3ShippingOption): number | null {
+  const raw = option.quotes?.[0]?.price?.total?.value
+  if (raw === undefined || raw === null || raw === '') return null
+  const parsed = typeof raw === 'number' ? raw : Number.parseFloat(raw)
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return Math.round(parsed * 100)
+}
+
+function extractSendcloudErrorMessage(errorBody: SendcloudErrorBody): string | undefined {
+  if (Array.isArray(errorBody.errors) && errorBody.errors.length > 0) {
+    const parts = errorBody.errors
+      .map((entry) => {
+        const msg = entry.detail ?? entry.code
+        if (!msg) return null
+        return entry.source?.pointer ? `${entry.source.pointer}: ${msg}` : msg
+      })
+      .filter((entry): entry is string => Boolean(entry))
+    if (parts.length > 0) {
+      return parts.join('; ')
+    }
+  }
+  if (typeof errorBody.error?.message === 'string' && errorBody.error.message.trim()) {
+    return errorBody.error.message.trim()
+  }
+  if (typeof errorBody.detail === 'string' && errorBody.detail.trim()) {
+    return errorBody.detail.trim()
+  }
+  return undefined
+}
+
+function extractLabelUrl(parcel?: SendcloudV3AnnouncedParcel | null): string {
+  if (!parcel) return ''
+  const labelDocument = parcel.documents?.find(
+    (doc) => doc.type?.toLowerCase() === 'label' && typeof doc.link === 'string' && doc.link.trim(),
+  )
+  if (labelDocument?.link) {
+    return labelDocument.link
+  }
+
+  const normalPrinterUrl = Array.isArray(parcel.label?.normal_printer)
+    ? (parcel.label.normal_printer[0] ?? '')
+    : (parcel.label?.normal_printer ?? '')
+
+  return parcel.label?.a4_printer ?? parcel.label?.label_printer ?? normalPrinterUrl ?? ''
+}
+
+function mapV3TrackingStatus(event?: SendcloudV3TrackingEvent): string {
+  if (!event) return 'registered'
+
+  const phase = event.phase?.toLowerCase().trim() ?? ''
+  const exception = event.exception?.toLowerCase().trim() ?? ''
+
+  if (phase === 'delivered') return 'delivered'
+  if (phase === 'returned' || exception === 'returned_to_sender') return 'returned_to_sender'
+  if (
+    exception &&
+    exception !== 'none' &&
+    ['address_error', 'not_collected', 'refused', 'delivery_failed', 'unable_to_deliver'].includes(
+      exception,
+    )
+  ) {
+    return 'unable_to_deliver'
+  }
+  if (phase === 'out_for_delivery') return 'out_for_delivery'
+  if (phase === 'in_transit' || phase === 'ready_for_pickup') return 'in_transit'
+  if (phase === 'announced') return 'registered'
+
+  return phase || 'registered'
+}
+
+function buildV3Address(address: ShippingAddress, defaultName: string): Record<string, unknown> {
+  const { addressLine1, houseNumber } = splitStreetAndHouseNumber(address.street)
+  const payload: Record<string, unknown> = {
+    name: address.name?.trim() || address.company?.trim() || defaultName,
+    company_name: address.company?.trim() || '',
+    address_line_1: addressLine1,
+    postal_code: address.postalCode.trim(),
+    city: address.city.trim(),
+    country_code: address.country.trim().toUpperCase(),
+  }
+
+  if (houseNumber) {
+    payload.house_number = houseNumber
+  }
+  if (address.addressLine2?.trim()) {
+    payload.address_line_2 = address.addressLine2.trim()
+  }
+  if (address.email?.trim()) {
+    payload.email = address.email.trim()
+  }
+  if (address.phone?.trim()) {
+    payload.phone_number = address.phone.trim()
+  }
+
+  return payload
+}
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -125,91 +338,113 @@ export class SendcloudProvider implements ShippingProvider {
   private readonly secretKey: string | undefined
   private readonly fetchFn: typeof fetch
   private readonly db?: PostgresJsDatabase<Record<string, never>>
-  private unstampedLetterMethodId: number | undefined
 
   constructor(deps?: SendcloudProviderDeps) {
     this.publicKey = deps?.publicKey ?? getSendcloudPublicKey()
     this.secretKey = deps?.secretKey ?? getSendcloudSecretKey()
     this.fetchFn = deps?.fetch ?? fetch
     this.db = deps?.db
-    this.unstampedLetterMethodId = getSendcloudUnstampedLetterMethodId()
   }
 
   // -----------------------------------------------------------------------
-  // getRates
+  // getRates (Sendcloud API v3: POST /api/v3/shipping-options)
   // -----------------------------------------------------------------------
 
   async getRates(
-    _origin: ShippingAddress,
+    origin: ShippingAddress,
     destination: ShippingAddress,
     pkg: Package,
   ): Promise<Rate[]> {
-    const methods = await this.listShippingMethods()
-    const weightKg = pkg.weightGrams / 1000
-    const destinationCountry = destination.country.toUpperCase()
+    const response = await this.requestV3<SendcloudV3ShippingOptionsResponse>(
+      'POST',
+      '/shipping-options',
+      {
+        from_country_code: origin.country.trim().toUpperCase(),
+        to_country_code: destination.country.trim().toUpperCase(),
+        parcels: [
+          {
+            weight: {
+              value: (pkg.weightGrams / 1000).toFixed(3),
+              unit: 'kg',
+            },
+          },
+        ],
+        calculate_quotes: true,
+      },
+    )
 
-    const rates: Rate[] = []
+    const options = response.data ?? []
+    const cheapestByCode = new Map<string, Rate>()
 
-    for (const method of methods) {
+    for (const option of options) {
+      const carrierCode = option.carrier?.code?.toLowerCase().trim() ?? ''
       if (
-        method.carrier.toLowerCase() === 'sendcloud' ||
-        method.name.toLowerCase().includes('unstamped letter')
+        !option.code ||
+        EXCLUDED_CHECKOUT_CARRIERS.has(carrierCode) ||
+        option.name.toLowerCase().includes('unstamped letter')
       ) {
         continue
       }
 
-      const minWeight = Number.parseFloat(method.min_weight)
-      const maxWeight = Number.parseFloat(method.max_weight)
-
-      if (Number.isNaN(minWeight) || Number.isNaN(maxWeight)) continue
-      if (weightKg < minWeight || weightKg > maxWeight) continue
-
-      const countryRate = this.findCountryRate(method.countries, destinationCountry)
-      if (
-        !countryRate ||
-        typeof countryRate.price !== 'number' ||
-        Number.isNaN(countryRate.price)
-      ) {
+      const priceCents = parseQuotePriceCents(option)
+      if (priceCents === null) {
         continue
       }
 
-      const priceCents = Math.round(countryRate.price * 100)
+      const lastMile = option.functionalities?.last_mile?.toLowerCase().trim() ?? ''
       const supportsServicePoint =
-        method.service_point_input === 'required' || method.service_point_input === 'optional'
+        option.requirements?.is_service_point_required === true ||
+        SERVICE_POINT_LAST_MILE_MODES.has(lastMile)
 
-      rates.push({
-        rateId: String(method.id),
-        carrier: method.carrier.toLowerCase().replace(/\s+/g, '_'),
-        serviceName: method.name,
+      const rate: Rate = {
+        rateId: option.code,
+        carrier: carrierCode.replace(/\s+/g, '_') || 'sendcloud',
+        serviceName: option.name,
         priceCents,
-        estimatedDays: { min: 2, max: 7 }, // Sendcloud does not expose a min/max range per method in v2; use conservative defaults.
+        estimatedDays: estimateDaysFromLeadTime(option.quotes?.[0]?.lead_time),
         supportsServicePoint,
-      })
+      }
+
+      const existing = cheapestByCode.get(rate.rateId)
+      if (!existing || rate.priceCents < existing.priceCents) {
+        cheapestByCode.set(rate.rateId, rate)
+      }
     }
 
+    const rates = Array.from(cheapestByCode.values())
     rates.sort((a, b) => a.priceCents - b.priceCents)
     return rates
   }
 
   // -----------------------------------------------------------------------
-  // createLabel
+  // createLabel (Sendcloud API v3: POST /api/v3/shipments/announce)
   // -----------------------------------------------------------------------
 
   async createLabel(shipmentDetails: ShipmentDetails): Promise<Label> {
-    const effectiveMethodId = await this.resolveShippingMethodId(shipmentDetails.carrierService)
+    this.validateOriginAddress(shipmentDetails.origin)
+    const shippingOptionCode = this.resolveShippingOptionCode(shipmentDetails.carrierService)
+    const body = this.buildAnnouncePayload(shipmentDetails, shippingOptionCode)
 
-    const body = this.buildParcelPayload(shipmentDetails, effectiveMethodId)
+    const response = await this.requestV3<SendcloudV3AnnounceResponse>(
+      'POST',
+      '/shipments/announce',
+      body,
+    )
 
-    const response = await this.request<SendcloudParcelResponse>('POST', '/parcels', body)
+    const shipment = 'data' in response ? response.data : response
+    const parcel = shipment.parcels?.[0]
+    const parcelId = parcel?.id ?? shipment.id
+    if (parcelId === undefined || parcelId === null || String(parcelId).trim() === '') {
+      throw new SendcloudError('Sendcloud API v3 response did not include a parcel id', 502)
+    }
 
-    const parcel = 'parcel' in response ? response.parcel : response
-    const normalPrinterUrl = Array.isArray(parcel.label?.normal_printer)
-      ? (parcel.label.normal_printer[0] ?? '')
-      : (parcel.label?.normal_printer ?? '')
-    const labelUrl =
-      parcel.label?.a4_printer ?? parcel.label?.label_printer ?? normalPrinterUrl ?? ''
-    const trackingNumber = parcel.tracking_number ?? ''
-    const carrier = shipmentDetails.pickupPoint?.carrier ?? 'sendcloud'
+    const externalParcelId = String(parcelId)
+    const trackingNumber = parcel?.tracking_number ?? ''
+    const labelUrl = extractLabelUrl(parcel)
+    const carrier =
+      shipment.carrier?.code?.toLowerCase().trim() ||
+      shipmentDetails.pickupPoint?.carrier?.toLowerCase().trim() ||
+      (shippingOptionCode.includes(':') ? shippingOptionCode.split(':')[0] : 'sendcloud')
 
     if (this.db && shipmentDetails.reference) {
       await this.db.insert(shippingLabel).values({
@@ -217,64 +452,66 @@ export class SendcloudProvider implements ShippingProvider {
         carrier,
         trackingNumber,
         labelUrl,
-        externalParcelId: String(parcel.id),
+        externalParcelId,
       })
     }
 
     return {
-      labelId: String(parcel.id),
+      labelId: externalParcelId,
       trackingNumber,
       labelUrl,
       carrier,
-      externalParcelId: String(parcel.id),
+      externalParcelId,
     }
   }
 
   // -----------------------------------------------------------------------
-  // trackShipment
+  // trackShipment (Sendcloud API v3: GET /api/v3/parcels/tracking/{tn})
   // -----------------------------------------------------------------------
 
   async trackShipment(trackingNumber: string): Promise<TrackingInfo> {
-    interface ParcelsResponse {
-      parcels: Array<{
-        id: number
-        tracking_number: string
-        status: { message: string }
-        status_history?: Array<{
-          message: string
-          timestamp: string
-        }>
-      }>
-    }
-
-    const response = await this.request<ParcelsResponse>(
+    const response = await this.requestV3<SendcloudV3TrackingResponse>(
       'GET',
-      `/parcels?tracking_number=${encodeURIComponent(trackingNumber)}`,
+      `/parcels/tracking/${encodeURIComponent(trackingNumber)}`,
     )
 
-    const parcel = response.parcels?.[0]
-    if (!parcel) {
+    const payload: SendcloudV3TrackingPayload | null = 'data' in response ? response.data : response
+    if (!payload) {
       throw new SendcloudError(`Parcel not found for tracking number ${trackingNumber}`, 404)
     }
 
-    const events: TrackingEvent[] =
-      parcel.status_history?.map((h) => ({
-        timestamp: h.timestamp,
-        status: h.message,
-      })) ?? []
+    const rawEvents = payload.events ?? []
+    const events: TrackingEvent[] = rawEvents
+      .filter((event): event is SendcloudV3TrackingEvent & { timestamp: string } =>
+        Boolean(event.timestamp),
+      )
+      .map((event) => ({
+        timestamp: event.timestamp,
+        status: event.description?.trim() || event.phase?.trim() || 'Update',
+      }))
 
     events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
+    // Sendcloud v3 returns events newest-first, so pick the latest by timestamp.
+    const latestEvent = [...rawEvents].sort((left, right) => {
+      const leftTs = left.timestamp ? new Date(left.timestamp).getTime() : 0
+      const rightTs = right.timestamp ? new Date(right.timestamp).getTime() : 0
+      return rightTs - leftTs
+    })[0]
+
+    const primaryTracking = payload.tracking_numbers?.[0]
+
     return {
-      trackingNumber: parcel.tracking_number,
-      carrier: 'sendcloud',
-      status: this.mapSendcloudStatus(parcel.status.message),
+      trackingNumber: primaryTracking?.tracking_number?.trim() || trackingNumber,
+      carrier: primaryTracking?.carrier?.toLowerCase().trim() || 'sendcloud',
+      status: mapV3TrackingStatus(latestEvent),
+      estimatedDelivery: payload.details?.expected_delivery_date ?? undefined,
       events,
     }
   }
 
   // -----------------------------------------------------------------------
-  // getServicePoints
+  // getServicePoints (Sendcloud Service Points API v2)
   // -----------------------------------------------------------------------
 
   async getServicePoints(
@@ -321,18 +558,38 @@ export class SendcloudProvider implements ShippingProvider {
   }
 
   // -----------------------------------------------------------------------
-  // getServicePointMethods
+  // getServicePointMethods (Sendcloud API v3: POST /api/v3/shipping-options)
   // -----------------------------------------------------------------------
 
   async getServicePointMethods(servicePointId: string): Promise<Rate[]> {
-    const methods = await this.listShippingMethods(servicePointId)
+    const trimmed = servicePointId.trim()
+    const toServicePointId = /^\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : trimmed
+    const response = await this.requestV3<SendcloudV3ShippingOptionsResponse>(
+      'POST',
+      '/shipping-options',
+      {
+        to_service_point_id: toServicePointId,
+      },
+    )
+
+    const seen = new Set<string>()
     const rates: Rate[] = []
 
-    for (const method of methods) {
+    for (const option of response.data ?? []) {
+      const carrierCode = option.carrier?.code?.toLowerCase().trim() ?? ''
+      if (
+        !option.code ||
+        seen.has(option.code) ||
+        EXCLUDED_CHECKOUT_CARRIERS.has(carrierCode) ||
+        option.name.toLowerCase().includes('unstamped letter')
+      ) {
+        continue
+      }
+      seen.add(option.code)
       rates.push({
-        rateId: String(method.id),
-        carrier: method.carrier.toLowerCase().replace(/\s+/g, '_'),
-        serviceName: method.name,
+        rateId: option.code,
+        carrier: carrierCode.replace(/\s+/g, '_') || 'sendcloud',
+        serviceName: option.name,
         priceCents: 0, // Pricing is calculated per destination in getRates.
         estimatedDays: { min: 2, max: 7 },
         supportsServicePoint: true,
@@ -365,119 +622,96 @@ export class SendcloudProvider implements ShippingProvider {
   // Internal helpers
   // -----------------------------------------------------------------------
 
-  private async resolveShippingMethodId(selectedRateId: string): Promise<number> {
+  private validateOriginAddress(origin: ShippingAddress): void {
+    if (
+      !origin.street?.trim() ||
+      !origin.city?.trim() ||
+      !origin.postalCode?.trim() ||
+      !origin.country?.trim()
+    ) {
+      throw new SendcloudError(
+        'Shop shipping origin address must include street, city, postal code, and country',
+        400,
+      )
+    }
+  }
+
+  private resolveShippingOptionCode(selectedRateId: string): string {
     const forceUnstamped = getSendcloudForceUnstampedLetter()
 
     if (forceUnstamped) {
-      const id = await this.getUnstampedLetterMethodId()
-      if (id) return id
-      logger.error(
-        'SendcloudProvider: Unstamped letter method not found while SENDCLOUD_FORCE_UNSTAMPED_LETTER is enabled. Refusing to fall back to selected method.',
-      )
-      throw new SendcloudError(
-        'Unstamped letter shipping method could not be resolved while SENDCLOUD_FORCE_UNSTAMPED_LETTER is enabled',
-        503,
-      )
-    }
-
-    const numericId = Number.parseInt(selectedRateId, 10)
-    if (!Number.isNaN(numericId) && numericId > 0) {
-      return numericId
-    }
-
-    throw new SendcloudError(`Invalid Sendcloud shipping method id: ${selectedRateId}`, 400)
-  }
-
-  private async getUnstampedLetterMethodId(): Promise<number | undefined> {
-    if (this.unstampedLetterMethodId) {
-      return this.unstampedLetterMethodId
-    }
-
-    const configured = getSendcloudUnstampedLetterMethodId()
-    if (configured) {
-      this.unstampedLetterMethodId = configured
-      return configured
-    }
-
-    try {
-      const methods = await this.listShippingMethods()
-      const method = methods.find((m) => m.name.toLowerCase().includes('unstamped letter'))
-      if (method) {
-        this.unstampedLetterMethodId = method.id
-        return method.id
+      const configured = getSendcloudUnstampedLetterOptionCode()
+      const effectiveCode =
+        configured === undefined ? DEFAULT_UNSTAMPED_LETTER_OPTION_CODE : configured
+      if (!effectiveCode || !effectiveCode.toLowerCase().startsWith('sendcloud:')) {
+        logger.error(
+          'SendcloudProvider: invalid SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE while SENDCLOUD_FORCE_UNSTAMPED_LETTER is enabled. Refusing to fall back to selected option.',
+          { configuredOptionCode: configured },
+        )
+        throw new SendcloudError(
+          'Unstamped letter shipping option could not be resolved while SENDCLOUD_FORCE_UNSTAMPED_LETTER is enabled',
+          503,
+        )
       }
-    } catch (err) {
-      logger.error('SendcloudProvider: failed to discover Unstamped letter method', err)
+      return effectiveCode
     }
 
-    return undefined
-  }
-
-  private async listShippingMethods(servicePointId?: string): Promise<SendcloudShippingMethod[]> {
-    interface MethodsResponse {
-      shipping_methods: SendcloudShippingMethod[]
+    const trimmed = selectedRateId.trim()
+    if (!trimmed) {
+      throw new SendcloudError('Sendcloud shipping option code is required', 400)
     }
 
-    const params = servicePointId ? `?service_point_id=${encodeURIComponent(servicePointId)}` : ''
-    const response = await this.request<MethodsResponse>('GET', `/shipping_methods${params}`)
-    return response.shipping_methods ?? []
+    return trimmed
   }
 
-  private buildParcelPayload(details: ShipmentDetails, methodId: number): Record<string, unknown> {
-    const { destination, package: pkg, reference, pickupPoint } = details
+  private buildAnnouncePayload(
+    details: ShipmentDetails,
+    shippingOptionCode: string,
+  ): Record<string, unknown> {
+    const { origin, destination, package: pkg, reference, pickupPoint } = details
 
     const declaredValueCents = details.declaredValueCents ?? 0
     const totalOrderValue = (declaredValueCents / 100).toFixed(2)
 
-    const parcel: Record<string, unknown> = {
-      name: destination.company ?? 'Recipient',
-      company_name: destination.company ?? '',
-      address: destination.street,
-      city: destination.city,
-      postal_code: destination.postalCode,
-      country: destination.country.toUpperCase(),
-      request_label: true,
-      shipment: { id: methodId },
-      weight: (pkg.weightGrams / 1000).toFixed(3),
+    const payload: Record<string, unknown> = {
+      from_address: buildV3Address(origin, 'Eurtisan Seller'),
+      to_address: buildV3Address(destination, 'Recipient'),
+      ship_with: {
+        type: 'shipping_option_code',
+        properties: {
+          shipping_option_code: shippingOptionCode,
+        },
+      },
       order_number: reference ?? '',
-      total_order_value_currency: 'EUR',
-      total_order_value: totalOrderValue,
+      total_order_price: {
+        currency: 'EUR',
+        value: totalOrderValue,
+      },
+      parcels: [
+        {
+          weight: {
+            value: (pkg.weightGrams / 1000).toFixed(3),
+            unit: 'kg',
+          },
+        },
+      ],
     }
 
     if (pickupPoint) {
-      parcel.to_service_point = pickupPoint.id
+      payload.to_service_point = {
+        id: pickupPoint.id,
+      }
     }
 
-    return { parcel }
+    return payload
   }
 
-  private mapSendcloudStatus(message: string): string {
-    const normalized = message.toLowerCase()
-    if (normalized.includes('delivered')) return 'delivered'
-    if (normalized.includes('out for delivery')) return 'out_for_delivery'
-    if (normalized.includes('transit')) return 'in_transit'
-    if (normalized.includes('registered') || normalized.includes('label created'))
-      return 'registered'
-    return normalized
-  }
-
-  private findCountryRate(
-    countries: SendcloudShippingMethod['countries'] | undefined,
-    destinationCountry: string,
-  ): SendcloudCountryRate | undefined {
-    if (!countries) return undefined
-    if (Array.isArray(countries)) {
-      return countries.find((country) => country.iso_2?.toUpperCase() === destinationCountry)
-    }
-    return countries[destinationCountry]
-  }
-
-  private async request<T>(
+  private async requestV3<T>(
     method: 'GET' | 'POST' | 'DELETE',
     path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
-    return this.requestUrl<T>(method, `${SENDCLOUD_API_BASE}${path}`, body)
+    return this.requestUrl<T>(method, `${SENDCLOUD_V3_API_BASE}${path}`, body)
   }
 
   private async requestUrl<T>(
@@ -512,11 +746,19 @@ export class SendcloudProvider implements ShippingProvider {
       if (!response.ok) {
         let sendcloudMessage: string | undefined
         try {
-          const errorBody = (await response.json()) as { error?: { message?: string } }
-          sendcloudMessage = errorBody.error?.message
+          const errorBody = (await response.json()) as SendcloudErrorBody
+          sendcloudMessage = extractSendcloudErrorMessage(errorBody)
         } catch {
           // Ignore parse errors; fall back to status text.
         }
+
+        logger.error('SendcloudProvider API error', {
+          method,
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          sendcloudMessage,
+        })
 
         throw new SendcloudError(
           `Sendcloud API error: ${response.statusText}`,

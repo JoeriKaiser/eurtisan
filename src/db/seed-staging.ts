@@ -20,7 +20,7 @@ import {
   configureProductsIndex,
   populateProductsIndex,
 } from '../lib/meilisearch-products.server.ts'
-import { encryptJsonb } from '../lib/encryption.server.ts'
+import { decryptJsonb, encryptJsonb } from '../lib/encryption.server.ts'
 import { uploadImageFromUrl } from '../lib/image-storage.server.ts'
 import * as schema from './schema.ts'
 import { CATEGORY_DESCRIPTIONS, SUBCATEGORY_DESCRIPTIONS } from './seed-descriptions.ts'
@@ -416,15 +416,16 @@ const SHOP_DEFS: ShopDef[] = [
     slug: 'the-forge',
     tagline: 'Handcrafted goods from the heart of Europe',
     description:
-      'The Forge is a Brussels-based collective of artisans creating timeless pieces that blend traditional European craftsmanship with contemporary design. Every item is made by hand in our shared workshop, using locally sourced, sustainable materials.',
+      'The Forge is a Lyon-based collective of artisans creating timeless pieces that blend traditional European craftsmanship with contemporary design. Every item is made by hand in our shared workshop, using locally sourced, sustainable materials.',
     category: 'home_living',
     productionType: 'handmade',
-    tags: ['handmade', 'brussels', 'sustainable', 'ceramics', 'woodwork'],
+    tags: ['handmade', 'lyon', 'sustainable', 'ceramics', 'woodwork'],
     languages: ['en', 'fr', 'nl'],
     shippingOrigin: {
-      city: 'Brussels',
-      country: 'BE',
-      postalCode: '1000',
+      street: '12 Rue de la République',
+      city: 'Lyon',
+      country: 'FR',
+      postalCode: '69001',
       processingTimeDays: { min: 3, max: 7 },
       shipsInternational: true,
     },
@@ -456,6 +457,7 @@ const SHOP_DEFS: ShopDef[] = [
     tags: ['pottery', 'ceramics', 'handmade', 'portugal'],
     languages: ['en', 'pt'],
     shippingOrigin: {
+      street: 'Rua Augusta 42',
       city: 'Lisbon',
       country: 'PT',
       postalCode: '1000-001',
@@ -479,6 +481,7 @@ const SHOP_DEFS: ShopDef[] = [
     tags: ['knitwear', 'wool', 'sustainable', 'baltic', 'accessories'],
     languages: ['en', 'et'],
     shippingOrigin: {
+      street: 'Viru 14',
       city: 'Tallinn',
       country: 'EE',
       postalCode: '10111',
@@ -508,6 +511,7 @@ const SHOP_DEFS: ShopDef[] = [
     tags: ['woodwork', 'reclaimed', 'furniture', 'sustainable'],
     languages: ['en', 'de'],
     shippingOrigin: {
+      street: 'Marienplatz 8',
       city: 'Munich',
       country: 'DE',
       postalCode: '80331',
@@ -539,6 +543,7 @@ const SHOP_DEFS: ShopDef[] = [
     tags: ['jewellery', 'silver', 'gemstones', 'alpine', 'austrian'],
     languages: ['en', 'de', 'it'],
     shippingOrigin: {
+      street: 'Maria-Theresien-Strasse 18',
       city: 'Innsbruck',
       country: 'AT',
       postalCode: '6020',
@@ -572,6 +577,7 @@ const SHOP_DEFS: ShopDef[] = [
     tags: ['prints', 'posters', 'custom', 'fast'],
     languages: ['en'],
     shippingOrigin: {
+      street: 'Kärntner Strasse 22',
       city: 'Vienna',
       country: 'AT',
       postalCode: '1010',
@@ -595,6 +601,7 @@ async function seedShops(
       id: schema.shop.id,
       slug: schema.shop.slug,
       traderStatus: schema.shop.traderStatus,
+      shippingOrigin: schema.shop.shippingOrigin,
     })
     .from(schema.shop)
   const existingBySlug = new Map(existing.map((r) => [r.slug, r]))
@@ -615,14 +622,20 @@ async function seedShops(
     }
     const existingShop = existingBySlug.get(def.slug)
     if (existingShop) {
+      const updates: Partial<typeof schema.shop.$inferInsert> = {}
       if (existingShop.traderStatus === null && def.traderStatus) {
         console.log(
           `  → Backfilling traderStatus="${def.traderStatus}" for existing shop "${def.name}"`,
         )
-        await db
-          .update(schema.shop)
-          .set({ traderStatus: def.traderStatus })
-          .where(eq(schema.shop.id, existingShop.id))
+        updates.traderStatus = def.traderStatus
+      }
+      const existingOrigin = decryptJsonb<{ street?: string } | null>(existingShop.shippingOrigin)
+      if (!existingOrigin?.street?.trim()) {
+        console.log(`  → Backfilling shippingOrigin with street for existing shop "${def.name}"`)
+        updates.shippingOrigin = encryptJsonb(def.shippingOrigin)
+      }
+      if (Object.keys(updates).length > 0) {
+        await db.update(schema.shop).set(updates).where(eq(schema.shop.id, existingShop.id))
       }
       skippedShops++
       continue

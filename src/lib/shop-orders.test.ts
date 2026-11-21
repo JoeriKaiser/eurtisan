@@ -1600,6 +1600,41 @@ describe('createShippingLabelForOrderQuery', () => {
     }
   })
 
+  it('throws 400 when shop shipping origin is missing street address', async () => {
+    await seedUser()
+    await seedShop({
+      shippingOrigin: {
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+    })
+
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'paid',
+    })
+
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
+
+    try {
+      await createShippingLabelForOrderQuery(so.id)
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toContain('origin address is incomplete')
+    }
+  })
+
   it('creates a shipping label and stores it in the database', async () => {
     await seedUser()
     await seedShop({
