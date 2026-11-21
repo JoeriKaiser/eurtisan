@@ -126,7 +126,7 @@ test.describe('creator public shop preview', () => {
     await expect(page.getByRole('heading', { level: 1, name: publishedProduct.name })).toBeVisible()
     await expect(page.getByText(/€/).first()).toBeVisible()
     if (publishedProduct.description) {
-      await expect(page.getByText(publishedProduct.description)).toBeVisible()
+      await expect(page.getByText(publishedProduct.description).first()).toBeVisible()
     }
 
     const hiddenProduct = await createFixtureProduct({
