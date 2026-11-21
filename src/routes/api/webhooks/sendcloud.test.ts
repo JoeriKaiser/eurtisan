@@ -274,6 +274,48 @@ describe('POST /api/webhooks/sendcloud (processSendcloudWebhook)', () => {
     expect(body.status).toBe('unknown_tracking')
   })
 
+  it('matches by externalParcelId when intermediate status arrives before tracking number is assigned', async () => {
+    const platformOrd = await seedPlatformOrder()
+    const shopOrd = await seedShopOrder({ platformOrderId: platformOrd.id, status: 'paid' })
+    await seedShippingLabel({
+      shopOrderId: shopOrd.id,
+      trackingNumber: 'SC12345678',
+      externalParcelId: '746777573',
+    })
+
+    const req = mockRequest(
+      {
+        action: 'parcel_status_changed',
+        parcel: {
+          id: 746777573,
+          tracking_number: '',
+          status: { message: 'Being announced' },
+        },
+      },
+      { 'Sendcloud-Signature': 'valid_sig' },
+    )
+
+    const res = await processSendcloudWebhook(req, {
+      db,
+      verifySignature: async () => true,
+      secret: 'test-secret',
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('processed')
+
+    const [event] = await db
+      .select()
+      .from(sendcloudWebhookEvent)
+      .where(eq(sendcloudWebhookEvent.parcelId, '746777573'))
+      .limit(1)
+
+    expect(event).toBeDefined()
+    expect(event?.error).toBeNull()
+    expect(event?.processedAt).not.toBeNull()
+  })
+
   it('acknowledges signed integration lifecycle events with 200 without parcel fields', async () => {
     const req = mockRequest(
       {
