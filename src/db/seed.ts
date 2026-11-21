@@ -53,6 +53,44 @@ const IS_E2E_SEED = process.env.E2E_TEST === 'true'
 const IS_FAST_SEED = process.argv.includes('--fast') || process.env.SEED_FAST === 'true'
 const USE_LOCAL_FIXTURE_IMAGES = IS_E2E_SEED || IS_FAST_SEED
 
+function resolveRandomSeed(): number | undefined {
+  const flagIndex = process.argv.indexOf('--seed')
+  const raw =
+    flagIndex !== -1 && process.argv[flagIndex + 1] !== undefined
+      ? process.argv[flagIndex + 1]
+      : process.env.SEED_RANDOM_SEED
+  if (raw !== undefined && raw.trim() !== '') {
+    const parsed = Number.parseInt(raw, 10)
+    if (!Number.isNaN(parsed)) return parsed
+  }
+  return IS_E2E_SEED ? 42 : undefined
+}
+
+const RANDOM_SEED = resolveRandomSeed()
+if (RANDOM_SEED !== undefined) {
+  const fakers = [
+    faker,
+    fakerDA,
+    fakerDE,
+    fakerDE_AT,
+    fakerDE_CH,
+    fakerEL,
+    fakerES,
+    fakerFR,
+    fakerFR_BE,
+    fakerHU,
+    fakerIT,
+    fakerNL,
+    fakerNL_BE,
+    fakerPL,
+    fakerPT_PT,
+    fakerSV,
+  ]
+  fakers.forEach((instance, index) => {
+    instance.seed(RANDOM_SEED + index)
+  })
+}
+
 const CONFIG = IS_FAST_SEED
   ? {
       admins: 2,
@@ -419,7 +457,7 @@ async function seedUsers() {
       role: 'customer',
       image: avatarUrl(email),
     })
-    if (Math.random() > 0.5) {
+    if (faker.number.float({ min: 0, max: 1 }) > 0.5) {
       accounts.push({
         id: crypto.randomUUID(),
         accountId: id,
@@ -1329,7 +1367,9 @@ async function seedProducts(
 
   // Seed variants for a subset (e.g. 25%) of successfully inserted products
   console.log('Seeding variants and options for 25% of products...')
-  const variantEligibleProducts = products.filter(() => Math.random() < 0.25)
+  const variantEligibleProducts = products.filter(
+    () => faker.number.float({ min: 0, max: 1 }) < 0.25,
+  )
   for (const p of variantEligibleProducts) {
     try {
       await seedProductVariants(p.id!, p.slug!, p.name!)
@@ -1671,7 +1711,10 @@ async function seedOrders(
       }
 
       // Reviews
-      if (DELIVERED_STATUSES.has(shopStatus) && Math.random() < CONFIG.reviewsRate) {
+      if (
+        DELIVERED_STATUSES.has(shopStatus) &&
+        faker.number.float({ min: 0, max: 1 }) < CONFIG.reviewsRate
+      ) {
         for (const p of selectedProducts) {
           if (faker.datatype.boolean(0.45)) continue
           reviews.push({

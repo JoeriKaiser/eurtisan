@@ -1,4 +1,4 @@
-.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify bundle-check test test-related test-accessibility e2e e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status webhook-mollie webhook-sendcloud webhook-brevo sandbox-tunnel shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-seed db-seed-fast db-staging-seed db-studio i18n-compile init meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
+.PHONY: db-migrate-unit up ensure-up down stop logs dev build preview start install lint format format-fix check verify verify-fix bundle-check test test-related test-accessibility e2e e2e-only e2e-install e2e-ui e2e-report playwright-cli email-last email-links meili-status webhook-mollie webhook-sendcloud webhook-brevo sandbox-tunnel shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-seed db-seed-fast db-staging-seed db-studio i18n-compile init meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-status staging-evidence-create staging-evidence-validate staging-evidence-final infra-setup-staging infra-setup-production infra-deploy-staging infra-deploy-production infra-init infra-secrets FORCE
 
 # Run a command inside `app`: reuse the running container if up, otherwise run
 # a one-shot container without starting unrelated backing services.
@@ -104,6 +104,10 @@ check:
 # Combined static verification gate (lint + format + typecheck in a single container invocation)
 verify:
 	@$(call run_in_app,,sh -c "bun run lint && bun run format && bun run check")
+
+# Format then run the full static verification gate in one container invocation
+verify-fix:
+	@$(call run_in_app,,sh -c "bun run format:fix && bun run lint && bun run format && bun run check")
 
 # Fail on production dependency advisories of moderate severity or higher.
 # - GHSA-vfj7-8cjw-p6xm: transitive braces dependency inside @tanstack/start-plugin-core.
@@ -229,8 +233,10 @@ db-migrate-e2e: up
 	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T db-test psql -U eurtisan -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS eurtisan_test WITH (FORCE)" -c "CREATE DATABASE eurtisan_test"
 	docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm app bun run db:migrate
 
+E2E_SEED ?= 42
+
 db-seed-e2e: db-migrate-e2e
-	docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm app bun run db:seed -- --clear --force
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm app bun run db:seed -- --clear --force --seed $(E2E_SEED)
 	docker compose run --rm app bun run scripts/setup-garage-cors.ts
 	@rm -f e2e/.auth/*.json
 
@@ -285,7 +291,7 @@ e2e-install: ensure-up
 
 E2E_READY_TIMEOUT_SECONDS ?= 120
 
-e2e: up db-seed-e2e
+define run_e2e_specs
 	@docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d app --force-recreate
 	@echo "Waiting for app to be ready (max $(E2E_READY_TIMEOUT_SECONDS)s)..."
 	@i=0; \
@@ -303,10 +309,19 @@ e2e: up db-seed-e2e
 		docker compose up -d app --force-recreate; \
 		exit 1; \
 	fi
-	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T -e E2E_DATABASE_URL=$(E2E_DATABASE_URL) app bunx playwright test $(if $(ARGS),$(ARGS),$(filter-out e2e,$(MAKECMDGOALS))); \
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T -e E2E_DATABASE_URL=$(E2E_DATABASE_URL) app bunx playwright test $(1); \
 		e2e_exit=$$?; \
 		docker compose up -d app --force-recreate; \
 		exit $$e2e_exit
+endef
+
+e2e: up db-seed-e2e
+	$(call run_e2e_specs,$(if $(ARGS),$(ARGS),$(filter-out e2e,$(MAKECMDGOALS))))
+
+# Fast single-spec iteration against an already-seeded eurtisan_test database (skips drop/migrate/re-seed).
+e2e-only: up
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d db-test
+	$(call run_e2e_specs,$(if $(ARGS),$(ARGS),$(filter-out e2e-only,$(MAKECMDGOALS))))
 
 e2e-ui:
 	@echo "Playwright UI mode requires a display server (X11/Wayland) and cannot run inside a headless Docker container."
@@ -368,7 +383,7 @@ init:
 
 # Database
 db-generate: up
-	docker compose exec -T app bun run db:generate
+	docker compose exec -T -u $$(id -u):$$(id -g) app bun run db:generate
 
 db-check:
 	@$(call run_in_app,,bun run db:check)
@@ -418,19 +433,23 @@ ansible-check:
 staging-smoke: ensure-up
 	@test -n "$(STAGING_BASE_URL)" || (echo "STAGING_BASE_URL is required"; exit 1)
 	@test -n "$(EXPECTED_RELEASE)" || (echo "EXPECTED_RELEASE is required"; exit 1)
-	docker compose exec -T app bun run staging:qualification smoke --base-url "$(STAGING_BASE_URL)" --expected-release "$(EXPECTED_RELEASE)"
+	@docker compose exec -T app bun --silent run staging:qualification smoke --base-url "$(STAGING_BASE_URL)" --expected-release "$(EXPECTED_RELEASE)"
+
+staging-status:
+	ansible eurtisan-staging -i infrastructure/ansible/inventory/staging.yml -b -m script -a "scripts/staging-status-remote.sh"
 
 staging-evidence-create: ensure-up
 	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
-	docker compose exec -T app bun run staging:qualification create --output "$(QUALIFICATION_EVIDENCE)" --qualification-id "$(QUALIFICATION_ID)" --eu-region "$(QUALIFICATION_REGION)" --git-sha "$(QUALIFICATION_GIT_SHA)" --image-repository "$(QUALIFICATION_IMAGE_REPOSITORY)" --image-digest "$(QUALIFICATION_IMAGE_DIGEST)" --public-config-digest "$(QUALIFICATION_PUBLIC_CONFIG_DIGEST)"
+	@mkdir -p "$$(dirname "$(QUALIFICATION_EVIDENCE)")"
+	docker compose exec -T -u $$(id -u):$$(id -g) app bun --silent run staging:qualification create --output "$(QUALIFICATION_EVIDENCE)" --qualification-id "$(QUALIFICATION_ID)" --eu-region "$(QUALIFICATION_REGION)" --git-sha "$(QUALIFICATION_GIT_SHA)" --image-repository "$(QUALIFICATION_IMAGE_REPOSITORY)" --image-digest "$(QUALIFICATION_IMAGE_DIGEST)" --public-config-digest "$(QUALIFICATION_PUBLIC_CONFIG_DIGEST)"
 
 staging-evidence-validate: ensure-up
 	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
-	docker compose exec -T app bun run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final false
+	docker compose exec -T app bun --silent run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final false
 
 staging-evidence-final: ensure-up
 	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
-	docker compose exec -T app bun run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final true
+	docker compose exec -T app bun --silent run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final true
 
 # ── Owner-supplied Ansible validation/deployment ─────────────────────────
 ANSIBLE_PREFLIGHT_VARS ?=
@@ -453,6 +472,13 @@ infra-setup-staging:
 
 infra-setup-production:
 	ansible-playbook -i infrastructure/ansible/inventory/production.yml infrastructure/ansible/playbook.yml -e @infrastructure/ansible/secrets.yml --vault-password-file infrastructure/ansible/.vault_pass
+
+# Fast release rollout (preflight + signed build/sign/push/pull + migrations + rollout, skipping host bootstrap/backups/Garage)
+infra-deploy-staging:
+	ansible-playbook -i infrastructure/ansible/inventory/staging.yml infrastructure/ansible/playbook.yml -e @infrastructure/ansible/secrets.yml --vault-password-file infrastructure/ansible/.vault_pass --tags preflight,release
+
+infra-deploy-production:
+	ansible-playbook -i infrastructure/ansible/inventory/production.yml infrastructure/ansible/playbook.yml -e @infrastructure/ansible/secrets.yml --vault-password-file infrastructure/ansible/.vault_pass --tags preflight,release
 
 # Copy example inventory files before first use
 infra-init:
