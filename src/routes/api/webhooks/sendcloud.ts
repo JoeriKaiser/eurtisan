@@ -72,7 +72,7 @@ export async function processSendcloudWebhook(
 
   // 2. Persist the incoming event before processing so it can be replayed or audited.
   const signature = request.headers.get('Sendcloud-Signature') ?? ''
-  const trackingNumber = payload.parcel?.tracking_number
+  const trackingNumber = payload.parcel?.tracking_number?.trim() || undefined
   const parcelId = payload.parcel?.id
   const statusMessage = payload.parcel?.status?.message
 
@@ -120,12 +120,24 @@ export async function processSendcloudWebhook(
     return jsonResponse(200, 'acknowledged', `Acknowledged ${payload.action} event`)
   }
 
-  if (!trackingNumber || !parcelId) {
+  if (!trackingNumber && parcelId == null) {
     await markEventProcessed(database, eventRecord.id, 'missing_tracking_or_parcel_id')
     return jsonResponse(400, 'Bad Request', 'Missing parcel tracking number or id')
   }
 
   // 4. Find the shipping label row by tracking number or Sendcloud parcel id.
+  // Intermediate events (e.g. "Being announced") can arrive with a parcel id
+  // before a tracking number is assigned, so match whichever identifier is set.
+  const labelCondition =
+    trackingNumber && parcelId != null
+      ? or(
+          eq(shippingLabel.trackingNumber, trackingNumber),
+          eq(shippingLabel.externalParcelId, String(parcelId)),
+        )
+      : trackingNumber
+        ? eq(shippingLabel.trackingNumber, trackingNumber)
+        : eq(shippingLabel.externalParcelId, String(parcelId))
+
   const [label] = await database
     .select({
       id: shippingLabel.id,
@@ -133,12 +145,7 @@ export async function processSendcloudWebhook(
       trackingNumber: shippingLabel.trackingNumber,
     })
     .from(shippingLabel)
-    .where(
-      or(
-        eq(shippingLabel.trackingNumber, trackingNumber),
-        eq(shippingLabel.externalParcelId, String(parcelId)),
-      ),
-    )
+    .where(labelCondition)
     .limit(1)
 
   if (!label) {
