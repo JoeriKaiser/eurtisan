@@ -4,11 +4,12 @@ The `Makefile` exposes targets for fast verification, test execution, browser au
 
 ### 1. Fast verification and targeted tests
 
-Use `make verify` to run Biome linting, formatting checks, and TypeScript typechecking in a single container invocation:
+Use `make verify` (or `make verify-fix` to auto-format first) to run Biome linting, formatting checks, and TypeScript typechecking in a single container invocation:
 
 ```bash
 # Run lint, format check, and tsc --noEmit together
 make verify
+make verify-fix
 
 # Run a single test file (automatically selects only the matching Vitest project)
 make test src/lib/tax/pricing.test.ts
@@ -16,9 +17,18 @@ make test src/lib/tax/pricing.test.ts
 # Pass Vitest flags or dynamic route test paths via ARGS
 make test 'ARGS=src/route-components/category/$slug.test.tsx -t "renders"'
 
-# Run a single Playwright E2E spec or pass Playwright flags
+# Full clean E2E run (drops, migrates, and deterministically seeds eurtisan_test with --seed 42)
 make e2e e2e/smoke.spec.ts
 make e2e 'ARGS=e2e/smoke.spec.ts --grep "home"'
+
+# Fast single-spec iteration against an already-seeded eurtisan_test DB (skips drop/migrate/re-seed)
+make e2e-only 'ARGS=e2e/smoke.spec.ts'
+
+# Read-only staging health, digests, memory, Mailpit count, and recent error logs
+make staging-status
+
+# Fast signed release rollout (preflight + build/sign/push/migrate/rollout, skipping host bootstrap)
+make infra-deploy-staging
 ```
 
 ---

@@ -132,7 +132,7 @@ Docker Compose is the source of truth. Run project workflows through `make` from
 
 For code changes, completion requires:
 
-- `make lint` with no errors or warnings, `make format` with no formatting failures, and `make check` with no TypeScript errors, or `make verify` to run all three in one container invocation;
+- `make lint` with no errors or warnings, `make format` with no formatting failures, and `make check` with no TypeScript errors, or `make verify` / `make verify-fix` to run them in one container invocation;
 - focused tests via `make test <paths>`, `make test ARGS="<paths> -t '<pattern>'"`, or impacted tests via `make test-related <paths>`;
 - the full `make test` suite for broad or architectural changes.
 
@@ -240,7 +240,7 @@ The Vitest gate classifies runtime database dependencies. DB-backed unit files r
 
 Three databases, none shared: `eurtisan` (development, seeded), `eurtisan_test` (Playwright, seeded by `make db-seed-e2e`), and `eurtisan_unit` (Vitest, schema only). DB-backed tests call `clearTestTables()`, which truncates, so Vitest must never point at a seeded database. `vitest.config.ts` pins the URL and `make test` depends on `make db-migrate-unit`; do not repoint it at development to avoid creating the database.
 
-Playwright E2E is a local/release gate, not a GitHub Actions gate. Use the documented Compose E2E overlay for individual specs. Better Auth rate-limits repeated auth setup, so reuse generated auth state when possible.
+Playwright E2E is a local/release gate, not a GitHub Actions gate. `make e2e` recreates and deterministically seeds `eurtisan_test` (`E2E_SEED=42`); use `make e2e-only ARGS="<spec>"` for fast iteration against the already-seeded test database without re-seeding. Better Auth rate-limits repeated auth setup, so reuse generated auth state when possible. For authorized staging operations, use `make staging-status` for read-only inspection and `make infra-deploy-staging` for fast signed release rollouts.
 
 ## Database and migrations
 
