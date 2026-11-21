@@ -396,8 +396,9 @@ describe('SendcloudProvider', () => {
       })
     })
 
-    it('pins shipping_option_code to sendcloud:letter when force unstamped letter is enabled', async () => {
+    it('pins shipping_option_code to sendcloud:letter when force unstamped letter is enabled and override is unset or empty', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'true')
+      vi.stubEnv('SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE', '')
 
       const fetchFn = makeFetch({
         data: {

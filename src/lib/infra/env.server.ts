@@ -260,9 +260,9 @@ export function getSendcloudWebhookSecret(): string | undefined {
  */
 export function getSendcloudUnstampedLetterOptionCode(): string | undefined {
   if (typeof process !== 'undefined') {
-    const raw = process.env.SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE
-    if (raw !== undefined) {
-      return raw.trim()
+    const raw = process.env.SENDCLOUD_UNSTAMPED_LETTER_OPTION_CODE?.trim()
+    if (raw) {
+      return raw
     }
   }
   return undefined
