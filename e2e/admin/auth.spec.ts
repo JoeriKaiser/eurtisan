@@ -37,7 +37,7 @@ test.describe('admin authentication and access control', () => {
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Sign out' }).click()
     await expect(page).toHaveURL(/\/\/?$/)
-    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible()
   })
 
   test('non-admin customer is redirected to forbidden', async ({ page }) => {
