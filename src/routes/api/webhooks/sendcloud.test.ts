@@ -273,4 +273,25 @@ describe('POST /api/webhooks/sendcloud (processSendcloudWebhook)', () => {
     const body = await res.json()
     expect(body.status).toBe('unknown_tracking')
   })
+
+  it('acknowledges signed integration lifecycle events with 200 without parcel fields', async () => {
+    const req = mockRequest(
+      {
+        action: 'integration_connected',
+        timestamp: 1732180000000,
+        integration: { id: 42, shop_name: 'Eurtisan Staging' },
+      },
+      { 'Sendcloud-Signature': 'valid_sig' },
+    )
+
+    const res = await processSendcloudWebhook(req, {
+      db,
+      verifySignature: async () => true,
+      secret: 'test-secret',
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('acknowledged')
+  })
 })

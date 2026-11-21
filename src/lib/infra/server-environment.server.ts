@@ -172,6 +172,16 @@ const serverEnvironmentSchema = z
 
     if (!/^(?:live|test)_[A-Za-z0-9_-]{20,}$/.test(environment.MOLLIE_API_KEY)) {
       addIssue(context, 'MOLLIE_API_KEY', 'must be a valid Mollie API key')
+    } else if (
+      environment.APP_ENV === 'production' &&
+      !environment.MOLLIE_API_KEY.startsWith('live_')
+    ) {
+      addIssue(context, 'MOLLIE_API_KEY', 'must use a live_ key in production')
+    } else if (
+      environment.APP_ENV === 'staging' &&
+      !environment.MOLLIE_API_KEY.startsWith('test_')
+    ) {
+      addIssue(context, 'MOLLIE_API_KEY', 'must use a test_ key in staging')
     }
     if (environment.APP_ENV === 'production' && environment.MOLLIE_TEST_MODE !== 'false') {
       addIssue(context, 'MOLLIE_TEST_MODE', 'must be false in production')

@@ -67,7 +67,7 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
         let refreshToken: string | undefined
         let tokenExpiresAt: Date | undefined
 
-        if (code.startsWith('mock_code_')) {
+        if (process.env.NODE_ENV !== 'production' && code.startsWith('mock_code_')) {
           mollieAccountId = `acct_mock_${crypto.randomUUID().slice(0, 8)}`
           accessToken = 'mock_access_token'
           refreshToken = 'mock_refresh_token'

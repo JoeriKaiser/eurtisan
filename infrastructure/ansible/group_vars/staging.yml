@@ -15,6 +15,7 @@ s3_region: garage
 s3_bucket: eurtisan-staging-uploads
 mollie_test_mode: true
 sendcloud_force_unstamped_letter: true
+sendcloud_unstamped_letter_method_id: "8"
 email_delivery_provider: smtp
 email_smtp_host: mailpit
 email_smtp_port: "1025"

@@ -19,6 +19,13 @@ import {
   updateAuthoritativeTrackingStateQuery,
 } from '#/lib/shop-orders.server'
 
+const INTEGRATION_LIFECYCLE_ACTIONS = new Set([
+  'integration_connected',
+  'integration_updated',
+  'integration_deleted',
+  'integration_credentials',
+])
+
 /** Expected webhook payload shape from Sendcloud. */
 export interface SendcloudWebhookPayload {
   action?: string
@@ -106,6 +113,11 @@ export async function processSendcloudWebhook(
     sendcloudWebhookFailedTotal.inc({ reason: 'invalid_signature' })
     await markEventProcessed(database, eventRecord.id, 'invalid_signature')
     return jsonResponse(401, 'Unauthorized', 'Invalid signature')
+  }
+
+  if (payload.action && INTEGRATION_LIFECYCLE_ACTIONS.has(payload.action)) {
+    await markEventProcessed(database, eventRecord.id, null)
+    return jsonResponse(200, 'acknowledged', `Acknowledged ${payload.action} event`)
   }
 
   if (!trackingNumber || !parcelId) {
