@@ -269,6 +269,7 @@ Staging seed data is idempotent, additive, deterministic, and curated. Local dev
 - Privileged tests may need 2FA-enabled users because server functions enforce 2FA independently of route guards.
 - Deleted users are deactivated; tests reusing deleted records should expect unauthenticated/banned behavior.
 - Pass Playwright flags to `make e2e` or Vitest flags to `make test` via `ARGS="..."`, because bare Make arguments starting with `-` are interpreted by `make` itself.
+- Sendcloud closed Parcels API v2 for accounts created after April 13, 2026. `SendcloudProvider` uses API v3 (`POST /api/v3/shipping-options`, `POST /api/v3/shipments/announce`, `GET /api/v3/parcels/tracking/{tracking_number}`), pins `sendcloud:letter` when `SENDCLOUD_FORCE_UNSTAMPED_LETTER=true`, and omits RFC 2606/6762 reserved test email domains (`.local`, `.invalid`) that Sendcloud rejects.
 
 ## Documentation maintenance
 

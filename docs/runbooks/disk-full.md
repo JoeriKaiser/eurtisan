@@ -3,7 +3,7 @@
 ## Symptoms
 
 - Health check `disk: unhealthy` (below 500 MB free on `/opt/eurtisan`)
-- Backup cron failures in `/var/log/eurtisan-backup.log`
+- Backup systemd timer failures in `/var/log/eurtisan-backup.log` or `journalctl -u eurtisan-logical-backup.service`
 - Postgres cannot write WAL
 
 ## Immediate actions
