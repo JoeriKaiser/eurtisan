@@ -16,8 +16,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect Change Scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - name: Checkout (pull requests only)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify changed files
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          if [ -z "$changed" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          non_docs="$(printf '%s\n' "$changed" | grep -vE '\.md$' || true)"
+          if [ -z "$non_docs" ]; then
+            echo "Docs-only PR detected; heavy code/image checks will be skipped."
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
   quality:
     name: Quality, Migrations, Tests & Build
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -28,121 +71,167 @@ jobs:
       SKIP_GARAGE_INIT: "true"
       VITEST_PARALLEL_WORKERS: "3"
     steps:
+      - name: Skip heavy quality checks on docs-only PR
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only pull request; skipping code, migration, test, and build steps."
+
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Prepare safe local-only CI environment
+        if: needs.changes.outputs.docs_only != 'true'
         run: cp .env.example .env.local
 
       - name: Build CI application image
+        if: needs.changes.outputs.docs_only != 'true'
         run: DOCKER_BUILDKIT=1 docker build --target runtime -t eurtisan-app:ci .
 
       - name: Start Docker services
+        if: needs.changes.outputs.docs_only != 'true'
         run: make up
 
       - name: Compile i18n messages
+        if: needs.changes.outputs.docs_only != 'true'
         run: make i18n-compile
 
       - name: Check formatting
+        if: needs.changes.outputs.docs_only != 'true'
         run: make format
 
       - name: Lint
+        if: needs.changes.outputs.docs_only != 'true'
         run: make lint
 
       - name: Type check
+        if: needs.changes.outputs.docs_only != 'true'
         run: make check
 
       - name: Audit production dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         run: make audit-production
 
       - name: Validate migration chain
+        if: needs.changes.outputs.docs_only != 'true'
         run: make db-check
 
       - name: Apply full migration chain to a fresh isolated database
+        if: needs.changes.outputs.docs_only != 'true'
         run: make db-migrate-fresh
 
       - name: Apply migrations to the CI test database
+        if: needs.changes.outputs.docs_only != 'true'
         run: make db-migrate
 
       - name: Run unit and browser tests with warning gate
+        if: needs.changes.outputs.docs_only != 'true'
         run: make test
 
       - name: Build production application with warning gate
+        if: needs.changes.outputs.docs_only != 'true'
         run: make build
 
       - name: Enforce measured client bundle budgets
+        if: needs.changes.outputs.docs_only != 'true'
         run: make bundle-check
 
       # Production route generation intentionally excludes the development-only
       # Mollie mock route. Restore the committed development manifest after the
       # production artifacts and bundle budgets have been validated.
       - name: Restore development route tree
+        if: needs.changes.outputs.docs_only != 'true'
         run: git restore --source=HEAD -- src/routeTree.gen.ts
 
       - name: Verify validation did not mutate tracked files
+        if: needs.changes.outputs.docs_only != 'true'
         run: |
           git diff --exit-code
           test -z "$(git status --porcelain --untracked-files=no)"
 
       - name: Stop Docker services
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         run: docker compose down -v --remove-orphans
 
   production-image:
     name: Production Image Smoke
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: read
     steps:
+      - name: Skip production image smoke on docs-only PR
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only pull request; skipping production image smoke build."
+
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Build and smoke-test production image configuration
+        if: needs.changes.outputs.docs_only != 'true'
         run: PRODUCTION_SMOKE_IMAGE=eurtisan-app:ci make production-image-smoke
 
   infrastructure:
     name: Compose, Workflow, Shell & Ansible
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
     steps:
+      - name: Skip infrastructure checks on docs-only PR
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only pull request; skipping Compose, workflow, shell, and Ansible checks."
+
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Validate production and staging Compose models
+        if: needs.changes.outputs.docs_only != 'true'
         run: make compose-check
 
       - name: Validate GitHub Actions semantics
+        if: needs.changes.outputs.docs_only != 'true'
         run: make ci-workflow-check
 
       - name: Validate shell syntax
+        if: needs.changes.outputs.docs_only != 'true'
         run: make shell-syntax
 
       - name: Validate Ansible syntax, preflight, and templates
+        if: needs.changes.outputs.docs_only != 'true'
         run: make ansible-check
 
   prometheus-rules:
     name: Prometheus Rules
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
     steps:
+      - name: Skip Prometheus rules checks on docs-only PR
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only pull request; skipping Prometheus rules checks."
+
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Check Prometheus rules
+        if: needs.changes.outputs.docs_only != 'true'
         run: make promtool-check
 
       - name: Test Prometheus alert rules
+        if: needs.changes.outputs.docs_only != 'true'
         run: make promtool-test

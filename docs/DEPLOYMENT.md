@@ -43,8 +43,11 @@ Complete SPF, DKIM, and DMARC per [docs/EMAIL_DNS.md](./EMAIL_DNS.md) before sen
 ## 3. Deploy and Promote
 
 ```bash
-make infra-setup-staging
+make infra-setup-staging      # full host provisioning + rollout
+make infra-deploy-staging     # fast release rollout (preflight + build/sign/push/migrate/rollout)
 make infra-setup-production
+make infra-deploy-production
+make staging-status           # read-only check of staging digests, memory, Mailpit, and recent errors
 ```
 
 Each rollout:

@@ -36,6 +36,7 @@ infrastructure/woodpecker/.woodpecker-env
 scratch/
 skills-lock.json
 .playwright-cli/
+evidence/
 
 
 
