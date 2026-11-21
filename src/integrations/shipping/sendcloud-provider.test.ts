@@ -43,28 +43,35 @@ function makeFetch(response: unknown, status = 200): typeof fetch {
 
 describe('SendcloudProvider', () => {
   describe('getRates', () => {
-    it('returns rates mapped from Sendcloud shipping methods', async () => {
+    it('returns rates mapped from Sendcloud v2 array countries and excludes unstamped letter', async () => {
       const fetchFn = makeFetch({
         shipping_methods: [
           {
-            id: 123,
-            name: 'PostNL Standard',
-            carrier: 'PostNL',
-            min_weight: '0.000',
-            max_weight: '10.000',
-            countries: {
-              FR: { id: 1234, name: 'France', price: 6.95, currency: 'EUR' },
-            },
+            id: 8,
+            name: 'Unstamped letter',
+            carrier: 'sendcloud',
+            min_weight: '0.001',
+            max_weight: '1000.000',
+            service_point_input: 'none',
+            countries: [{ id: 8, iso_2: 'FR', name: 'France', price: 0, currency: 'EUR' }],
           },
           {
-            id: 124,
-            name: 'DHL Express',
-            carrier: 'DHL',
-            min_weight: '0.000',
-            max_weight: '10.000',
-            countries: {
-              FR: { id: 1244, name: 'France', price: 12.5, currency: 'EUR' },
-            },
+            id: 366,
+            name: 'Colissimo Home 0.25-0.5kg',
+            carrier: 'colissimo',
+            min_weight: '0.251',
+            max_weight: '0.501',
+            service_point_input: 'none',
+            countries: [{ id: 8, iso_2: 'FR', name: 'France', price: 8.94, currency: 'EUR' }],
+          },
+          {
+            id: 372,
+            name: 'Colissimo Service Point 0.25-0.5kg',
+            carrier: 'colissimo',
+            min_weight: '0.251',
+            max_weight: '0.501',
+            service_point_input: 'required',
+            countries: [{ id: 8, iso_2: 'FR', name: 'France', price: 7.04, currency: 'EUR' }],
           },
         ],
       })
@@ -78,13 +85,14 @@ describe('SendcloudProvider', () => {
       const rates = await provider.getRates(origin, destination, pkg)
 
       expect(rates).toHaveLength(2)
-      expect(rates[0].rateId).toBe('123')
-      expect(rates[0].carrier).toBe('postnl')
-      expect(rates[0].priceCents).toBe(695)
+      expect(rates[0].rateId).toBe('372')
+      expect(rates[0].carrier).toBe('colissimo')
+      expect(rates[0].priceCents).toBe(704)
       expect(rates[0].supportsServicePoint).toBe(true)
-      expect(rates[1].rateId).toBe('124')
-      expect(rates[1].carrier).toBe('dhl')
-      expect(rates[1].priceCents).toBe(1250)
+      expect(rates[1].rateId).toBe('366')
+      expect(rates[1].carrier).toBe('colissimo')
+      expect(rates[1].priceCents).toBe(894)
+      expect(rates[1].supportsServicePoint).toBe(false)
     })
 
     it('filters out methods that do not support the destination country', async () => {
@@ -145,16 +153,18 @@ describe('SendcloudProvider', () => {
       vi.unstubAllEnvs()
     })
 
-    it('creates a parcel and returns a label', async () => {
+    it('creates a parcel and unwraps wrapped Sendcloud v2 parcel + array normal_printer response', async () => {
       vi.stubEnv('SENDCLOUD_FORCE_UNSTAMPED_LETTER', 'false')
       const fetchFn = makeFetch({
-        id: 987,
-        tracking_number: '3SABC1234567',
-        label: {
-          normal_printer: 'https://sendcloud.example.com/label.pdf',
-          a4_printer: null,
+        parcel: {
+          id: 987,
+          tracking_number: '3SABC1234567',
+          label: {
+            normal_printer: ['https://sendcloud.example.com/label-a4.pdf'],
+            label_printer: 'https://sendcloud.example.com/label-thermal.pdf',
+          },
+          status: { message: 'Ready to send' },
         },
-        status: { message: 'Label created' },
       })
 
       const provider = new SendcloudProvider({
@@ -173,7 +183,7 @@ describe('SendcloudProvider', () => {
 
       expect(label.labelId).toBe('987')
       expect(label.trackingNumber).toBe('3SABC1234567')
-      expect(label.labelUrl).toBe('https://sendcloud.example.com/label.pdf')
+      expect(label.labelUrl).toBe('https://sendcloud.example.com/label-thermal.pdf')
       expect(label.carrier).toBe('sendcloud')
 
       const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
@@ -422,29 +432,27 @@ describe('SendcloudProvider', () => {
   })
 
   describe('getServicePoints', () => {
-    it('returns service points sorted by distance', async () => {
-      const fetchFn = makeFetch({
-        service_points: [
-          {
-            id: 'SP2',
-            name: 'Point 2',
-            street: 'Street 2',
-            postal_code: '75001',
-            city: 'Paris',
-            country: 'FR',
-            distance: '1.2 km',
-          },
-          {
-            id: 'SP1',
-            name: 'Point 1',
-            street: 'Street 1',
-            postal_code: '75001',
-            city: 'Paris',
-            country: 'FR',
-            distance: '0.4 km',
-          },
-        ],
-      })
+    it('calls servicepoints.sendcloud.sc and returns service points sorted by distance', async () => {
+      const fetchFn = makeFetch([
+        {
+          id: 2002,
+          name: 'Point 2',
+          street: 'Street 2',
+          postal_code: '75001',
+          city: 'Paris',
+          country: 'FR',
+          distance: 1200,
+        },
+        {
+          id: 1001,
+          name: 'Point 1',
+          street: 'Street 1',
+          postal_code: '75001',
+          city: 'Paris',
+          country: 'FR',
+          distance: 400,
+        },
+      ])
 
       const provider = new SendcloudProvider({
         publicKey: 'pk',
@@ -454,9 +462,12 @@ describe('SendcloudProvider', () => {
 
       const points = await provider.getServicePoints('75001', 'FR')
 
+      expect(String((fetchFn as ReturnType<typeof vi.fn>).mock.calls[0][0])).toContain(
+        'https://servicepoints.sendcloud.sc/api/v2/service-points/?',
+      )
       expect(points).toHaveLength(2)
-      expect(points[0].id).toBe('SP1')
-      expect(points[1].id).toBe('SP2')
+      expect(points[0].id).toBe('1001')
+      expect(points[1].id).toBe('2002')
     })
   })
 

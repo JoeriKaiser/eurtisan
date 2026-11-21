@@ -61,44 +61,50 @@ export class SendcloudError extends Error {
   }
 }
 
+interface SendcloudCountryRate {
+  id: number
+  name: string
+  price: number
+  currency?: string
+  iso_2?: string
+  iso_3?: string
+  lead_time_hours?: number | null
+}
+
 interface SendcloudShippingMethod {
   id: number
   name: string
   carrier: string
   min_weight: string
   max_weight: string
-  countries: Record<
-    string,
-    {
-      id: number
-      name: string
-      price: number
-      currency: string
-    }
-  >
+  service_point_input?: string
+  countries: SendcloudCountryRate[] | Record<string, SendcloudCountryRate>
 }
 
 interface SendcloudParcel {
   id: number
-  tracking_number: string
-  label: {
-    normal_printer: string | null
-    a4_printer: string | null
-  }
-  status: {
+  tracking_number?: string | null
+  label?: {
+    normal_printer?: string | string[] | null
+    label_printer?: string | null
+    a4_printer?: string | null
+  } | null
+  status?: {
     message: string
-  }
+  } | null
 }
 
+type SendcloudParcelResponse = SendcloudParcel | { parcel: SendcloudParcel }
+
 interface SendcloudServicePoint {
-  id: string
+  id: string | number
   name: string
   street: string
   house_number?: string
   postal_code: string
   city: string
   country: string
-  distance?: string
+  distance?: string | number
   carrier?: string
 }
 
@@ -107,6 +113,7 @@ interface SendcloudServicePoint {
 // ---------------------------------------------------------------------------
 
 const SENDCLOUD_API_BASE = 'https://panel.sendcloud.sc/api/v2'
+const SENDCLOUD_SERVICE_POINTS_API_BASE = 'https://servicepoints.sendcloud.sc/api/v2'
 const REQUEST_TIMEOUT_MS = 15_000
 
 // ---------------------------------------------------------------------------
@@ -144,27 +151,39 @@ export class SendcloudProvider implements ShippingProvider {
     const rates: Rate[] = []
 
     for (const method of methods) {
+      if (
+        method.carrier.toLowerCase() === 'sendcloud' ||
+        method.name.toLowerCase().includes('unstamped letter')
+      ) {
+        continue
+      }
+
       const minWeight = Number.parseFloat(method.min_weight)
       const maxWeight = Number.parseFloat(method.max_weight)
 
       if (Number.isNaN(minWeight) || Number.isNaN(maxWeight)) continue
       if (weightKg < minWeight || weightKg > maxWeight) continue
 
-      const countryRate = method.countries[destinationCountry]
-      if (!countryRate) continue
+      const countryRate = this.findCountryRate(method.countries, destinationCountry)
+      if (
+        !countryRate ||
+        typeof countryRate.price !== 'number' ||
+        Number.isNaN(countryRate.price)
+      ) {
+        continue
+      }
 
       const priceCents = Math.round(countryRate.price * 100)
+      const supportsServicePoint =
+        method.service_point_input === 'required' || method.service_point_input === 'optional'
 
       rates.push({
         rateId: String(method.id),
         carrier: method.carrier.toLowerCase().replace(/\s+/g, '_'),
         serviceName: method.name,
         priceCents,
-        estimatedDays: { min: 2, max: 7 }, // Sendcloud does not expose this per method in v2; use conservative defaults.
-        // Service-point support is validated per point via getServicePointMethods.
-        // We mark methods as potentially supporting service points so the UI shows
-        // the selector; incompatibility is caught when a point is selected.
-        supportsServicePoint: true,
+        estimatedDays: { min: 2, max: 7 }, // Sendcloud does not expose a min/max range per method in v2; use conservative defaults.
+        supportsServicePoint,
       })
     }
 
@@ -181,17 +200,22 @@ export class SendcloudProvider implements ShippingProvider {
 
     const body = this.buildParcelPayload(shipmentDetails, effectiveMethodId)
 
-    const response = await this.request<SendcloudParcel>('POST', '/parcels', body)
+    const response = await this.request<SendcloudParcelResponse>('POST', '/parcels', body)
 
-    const parcel = response
-    const labelUrl = parcel.label.a4_printer ?? parcel.label.normal_printer ?? ''
+    const parcel = 'parcel' in response ? response.parcel : response
+    const normalPrinterUrl = Array.isArray(parcel.label?.normal_printer)
+      ? (parcel.label.normal_printer[0] ?? '')
+      : (parcel.label?.normal_printer ?? '')
+    const labelUrl =
+      parcel.label?.a4_printer ?? parcel.label?.label_printer ?? normalPrinterUrl ?? ''
+    const trackingNumber = parcel.tracking_number ?? ''
     const carrier = shipmentDetails.pickupPoint?.carrier ?? 'sendcloud'
 
     if (this.db && shipmentDetails.reference) {
       await this.db.insert(shippingLabel).values({
         shopOrderId: shipmentDetails.reference,
         carrier,
-        trackingNumber: parcel.tracking_number,
+        trackingNumber,
         labelUrl,
         externalParcelId: String(parcel.id),
       })
@@ -199,7 +223,7 @@ export class SendcloudProvider implements ShippingProvider {
 
     return {
       labelId: String(parcel.id),
-      trackingNumber: parcel.tracking_number,
+      trackingNumber,
       labelUrl,
       carrier,
       externalParcelId: String(parcel.id),
@@ -266,30 +290,32 @@ export class SendcloudProvider implements ShippingProvider {
       params.set('carrier', carrier)
     }
 
-    interface ServicePointsResponse {
-      service_points: SendcloudServicePoint[]
-    }
+    type ServicePointsResponse =
+      | SendcloudServicePoint[]
+      | { service_points?: SendcloudServicePoint[] }
 
-    const response = await this.request<ServicePointsResponse>(
+    const response = await this.requestUrl<ServicePointsResponse>(
       'GET',
-      `/service-points?${params.toString()}`,
+      `${SENDCLOUD_SERVICE_POINTS_API_BASE}/service-points/?${params.toString()}`,
     )
 
-    const points = response.service_points ?? []
+    const points = Array.isArray(response) ? response : (response.service_points ?? [])
     points.sort((a, b) => {
-      const distA = a.distance ? Number.parseFloat(a.distance) : Number.POSITIVE_INFINITY
-      const distB = b.distance ? Number.parseFloat(b.distance) : Number.POSITIVE_INFINITY
+      const distA =
+        a.distance !== undefined ? Number.parseFloat(String(a.distance)) : Number.POSITIVE_INFINITY
+      const distB =
+        b.distance !== undefined ? Number.parseFloat(String(b.distance)) : Number.POSITIVE_INFINITY
       return distA - distB
     })
 
     return points.map((p) => ({
-      id: p.id,
+      id: String(p.id),
       name: p.name,
       street: [p.street, p.house_number].filter(Boolean).join(' '),
       postalCode: p.postal_code,
       city: p.city,
       country: p.country,
-      distance: p.distance,
+      distance: p.distance !== undefined ? String(p.distance) : undefined,
       carrier: p.carrier,
     }))
   }
@@ -435,9 +461,28 @@ export class SendcloudProvider implements ShippingProvider {
     return normalized
   }
 
+  private findCountryRate(
+    countries: SendcloudShippingMethod['countries'] | undefined,
+    destinationCountry: string,
+  ): SendcloudCountryRate | undefined {
+    if (!countries) return undefined
+    if (Array.isArray(countries)) {
+      return countries.find((country) => country.iso_2?.toUpperCase() === destinationCountry)
+    }
+    return countries[destinationCountry]
+  }
+
   private async request<T>(
     method: 'GET' | 'POST' | 'DELETE',
     path: string,
+    body?: Record<string, unknown>,
+  ): Promise<T> {
+    return this.requestUrl<T>(method, `${SENDCLOUD_API_BASE}${path}`, body)
+  }
+
+  private async requestUrl<T>(
+    method: 'GET' | 'POST' | 'DELETE',
+    url: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
     if (!this.publicKey || !this.secretKey) {
@@ -448,7 +493,6 @@ export class SendcloudProvider implements ShippingProvider {
     }
 
     const auth = Buffer.from(`${this.publicKey}:${this.secretKey}`).toString('base64')
-    const url = `${SENDCLOUD_API_BASE}${path}`
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -489,7 +533,7 @@ export class SendcloudProvider implements ShippingProvider {
         throw new SendcloudError('Sendcloud API request timed out', 504)
       }
 
-      logger.error('SendcloudProvider request failed', err, { path })
+      logger.error('SendcloudProvider request failed', err, { url })
       throw new SendcloudError(err instanceof Error ? err.message : 'Sendcloud request failed', 500)
     } finally {
       clearTimeout(timeoutId)
