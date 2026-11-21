@@ -114,7 +114,7 @@ describe('public staging smoke checks', () => {
         {
           status: 200,
           headers: {
-            'Cache-Control': 'private, no-store',
+            'Cache-Control': 'private, no-cache, no-store',
             'Content-Security-Policy':
               "default-src 'self'; script-src 'nonce-dGVzdG5vbmNlMTIzNA=='",
             'Strict-Transport-Security': 'max-age=31536000',

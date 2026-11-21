@@ -13,6 +13,9 @@ source "$BACKUP_ENV_FILE"
 set +a
 
 mkdir -p "$BACKUP_DIR" "$BACKUP_STATE_DIR"
+GNUPGHOME="$(mktemp -d)"
+chmod 700 "$GNUPGHOME"
+export GNUPGHOME
 BACKUP_FILE=""
 BACKUP_FAILED=false
 BACKUP_ERROR=""
@@ -62,6 +65,9 @@ on_exit() {
     send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
   fi
   cleanup
+  if [[ -n "${GNUPGHOME:-}" && -d "$GNUPGHOME" ]]; then
+    rm -rf "$GNUPGHOME"
+  fi
   if [[ "$BACKUP_FAILED" == "true" ]]; then
     post_report "failure" "$BACKUP_ERROR"
   else
