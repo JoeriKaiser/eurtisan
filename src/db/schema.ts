@@ -340,6 +340,12 @@ export const product = pgTable(
     index('product_created_at_idx').on(table.createdAt),
     index('product_catalog_browse_idx').on(table.status, table.isActive, table.createdAt),
     index('product_catalog_price_idx').on(table.status, table.isActive, table.priceCents),
+    index('product_fts_en_nl_gin_idx')
+      .using(
+        'gin',
+        sql`(to_tsvector('english', ${table.name} || ' ' || coalesce(${table.description}, '')) || to_tsvector('dutch', ${table.name} || ' ' || coalesce(${table.description}, '')))`,
+      )
+      .where(sql`${table.status} = 'published' AND ${table.isActive} = true`),
     uniqueIndex('product_shop_slug_published_unique')
       .on(table.shopId, table.slug)
       .where(sql`${table.status} = 'published'`),

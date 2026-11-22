@@ -1,33 +1,27 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { searchOverlay } from '#/lib/products/search-overlay.functions'
-import type { OverlayResults } from '#/lib/products.server'
 
 export type { OverlayCategory, OverlayProduct, OverlayResults } from '#/lib/products.server'
-
-const EMPTY: OverlayResults = { products: [], total: 0, categories: [] }
 
 /**
  * Debounced overlay suggestions behind the app's server boundary.
  *
  * Searches run through the `searchOverlay` server function: IP rate-limited,
  * Meilisearch-key-free in the browser, with the PostgreSQL fallback handled
- * server-side. The rate limiter rejects excess keystroke traffic with an
- * error, which the overlay surfaces as an empty state.
+ * server-side. Errors propagate so the overlay shows an error state rather than
+ * falsely claiming no products match.
  */
 export function useSearchOverlayResults(debouncedQuery: string, enabled: boolean) {
+  const normalizedQuery = debouncedQuery.trim()
+
   return useQuery({
-    queryKey: ['search-overlay', debouncedQuery],
-    queryFn: async () => {
-      try {
-        return await searchOverlay({ data: { query: debouncedQuery } })
-      } catch {
-        return EMPTY
-      }
-    },
-    enabled: enabled && debouncedQuery.trim().length >= 1,
+    queryKey: ['search-overlay', normalizedQuery],
+    queryFn: () => searchOverlay({ data: { query: normalizedQuery } }),
+    enabled: enabled && normalizedQuery.length >= 1,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
+    retry: false,
     placeholderData: (previousData) => previousData,
   })
 }

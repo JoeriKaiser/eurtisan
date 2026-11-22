@@ -143,6 +143,12 @@ export type SearchSortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newes
 
 export type SearchFilters = {
   categorySlug?: string
+  /**
+   * Descendant-expanded category slugs resolved from `categorySlug` against the
+   * category tree. When present, matches any product in the subtree rather than
+   * only products pinned directly to the parent slug.
+   */
+  categorySlugs?: string[]
   shopSlug?: string
   minPriceCents?: number
   maxPriceCents?: number

@@ -15,7 +15,8 @@ import Logo from './Logo'
 import UserMenu from './UserMenu'
 
 const rootRoute = getRouteApi('__root__')
-const SearchOverlay = lazy(() => import('./search/SearchOverlay'))
+const loadSearchOverlay = () => import('./search/SearchOverlay')
+const SearchOverlay = lazy(loadSearchOverlay)
 const MobileNavDrawer = lazy(() => import('./MobileNavDrawer'))
 
 export default function Header() {
@@ -123,6 +124,8 @@ export default function Header() {
         <div className='mx-4 hidden flex-1 items-center md:flex md:max-w-xs lg:max-w-sm'>
           <button
             type='button'
+            onMouseEnter={loadSearchOverlay}
+            onFocus={loadSearchOverlay}
             onClick={() => {
               setSearchKey((k) => k + 1)
               setSearchOverlayOpen(true)
@@ -149,6 +152,8 @@ export default function Header() {
           {/* Mobile Search Button (Opens SearchOverlay) */}
           <button
             type='button'
+            onMouseEnter={loadSearchOverlay}
+            onFocus={loadSearchOverlay}
             onClick={() => {
               setSearchKey((k) => k + 1)
               setSearchOverlayOpen(true)
@@ -210,7 +215,12 @@ export default function Header() {
 
       {searchOverlayOpen ? (
         <Suspense fallback={null}>
-          <SearchOverlay key={searchKey} isOpen onClose={() => setSearchOverlayOpen(false)} />
+          <SearchOverlay
+            key={searchKey}
+            isOpen
+            initialCategories={categories}
+            onClose={() => setSearchOverlayOpen(false)}
+          />
         </Suspense>
       ) : null}
     </header>

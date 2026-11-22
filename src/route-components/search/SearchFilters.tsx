@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
+import { useRef } from 'react'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/cn'
 import type { SearchFacets } from '#/lib/products/types'
@@ -33,6 +34,26 @@ export function SearchFilters({
 }) {
   const categoryCounts = facets?.categorySlug
   const inStockCount = facets?.inStock?.true
+  const committedMinPriceRef = useRef(filters.minPrice)
+  const committedMaxPriceRef = useRef(filters.maxPrice)
+
+  const commitMinPrice = () => {
+    if (filters.minPrice === committedMinPriceRef.current) return
+    committedMinPriceRef.current = filters.minPrice
+    navigateWithParams({
+      minPrice: filters.minPrice || undefined,
+      page: 1,
+    })
+  }
+
+  const commitMaxPrice = () => {
+    if (filters.maxPrice === committedMaxPriceRef.current) return
+    committedMaxPriceRef.current = filters.maxPrice
+    navigateWithParams({
+      maxPrice: filters.maxPrice || undefined,
+      page: 1,
+    })
+  }
 
   const categoryLabel = (name: string, slug: string): string => {
     const count = categoryCounts?.[slug]
@@ -107,19 +128,11 @@ export function SearchFilters({
                   onChange={(event) => {
                     setFilters((previous) => ({ ...previous, minPrice: event.target.value }))
                   }}
-                  onBlur={() => {
-                    navigateWithParams({
-                      minPrice: filters.minPrice || undefined,
-                      page: 1,
-                    })
-                  }}
+                  onBlur={commitMinPrice}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault()
-                      navigateWithParams({
-                        minPrice: filters.minPrice || undefined,
-                        page: 1,
-                      })
+                      commitMinPrice()
                     }
                   }}
                   className='h-10 text-sm'
@@ -137,19 +150,11 @@ export function SearchFilters({
                   onChange={(event) => {
                     setFilters((previous) => ({ ...previous, maxPrice: event.target.value }))
                   }}
-                  onBlur={() => {
-                    navigateWithParams({
-                      maxPrice: filters.maxPrice || undefined,
-                      page: 1,
-                    })
-                  }}
+                  onBlur={commitMaxPrice}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault()
-                      navigateWithParams({
-                        maxPrice: filters.maxPrice || undefined,
-                        page: 1,
-                      })
+                      commitMaxPrice()
                     }
                   }}
                   className='h-10 text-sm'
@@ -172,6 +177,8 @@ export function SearchFilters({
                       onClick={() => {
                         const nextMin = isActive ? '' : preset.min
                         const nextMax = isActive ? '' : preset.max
+                        committedMinPriceRef.current = nextMin
+                        committedMaxPriceRef.current = nextMax
                         setFilters((prev) => ({ ...prev, minPrice: nextMin, maxPrice: nextMax }))
                         navigateWithParams({
                           minPrice: nextMin || undefined,

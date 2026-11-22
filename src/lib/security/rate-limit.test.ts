@@ -12,9 +12,12 @@ import {
   assertUserRateLimit,
   checkRateLimit,
   checkRateLimitDb,
+  checkRateLimitMemory,
+  clearMemoryRateLimitsForTests,
 } from './rate-limit.server'
 
 beforeEach(async () => {
+  clearMemoryRateLimitsForTests()
   await clearTestTables()
 })
 
@@ -198,6 +201,34 @@ describe('checkRateLimitDb (database-backed)', () => {
     expect(executeSpy.mock.calls.length).toBeGreaterThanOrEqual(2)
 
     executeSpy.mockRestore()
+  })
+})
+
+describe('checkRateLimitMemory (in-memory)', () => {
+  it('allows requests up to the limit and blocks excess requests', () => {
+    const t0 = 60_000
+    expect(checkRateLimitMemory('overlay:1.2.3.4', 2, 60_000, t0)).toMatchObject({
+      allowed: true,
+      remaining: 1,
+    })
+    expect(checkRateLimitMemory('overlay:1.2.3.4', 2, 60_000, t0)).toMatchObject({
+      allowed: true,
+      remaining: 0,
+    })
+    const blocked = checkRateLimitMemory('overlay:1.2.3.4', 2, 60_000, t0 + 10_000)
+    expect(blocked.allowed).toBe(false)
+    expect(blocked.remaining).toBe(0)
+    expect(blocked.retryAfterSeconds).toBe(50)
+  })
+
+  it('resets the count when the fixed window rolls over', () => {
+    const t0 = 0
+    checkRateLimitMemory('overlay:5.6.7.8', 1, 10_000, t0)
+    expect(checkRateLimitMemory('overlay:5.6.7.8', 1, 10_000, t0 + 5_000).allowed).toBe(false)
+
+    const nextWindow = checkRateLimitMemory('overlay:5.6.7.8', 1, 10_000, t0 + 10_000)
+    expect(nextWindow.allowed).toBe(true)
+    expect(nextWindow.remaining).toBe(0)
   })
 })
 

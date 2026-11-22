@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useRouter } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { Clock, Sparkles, Tag, TrendingUp, X } from 'lucide-react'
 import { useRecentSearches } from '#/hooks/useRecentSearches'
 import { cn } from '#/lib/cn'
-import { m } from '#/paraglide/messages'
-import { listTrendingSearches } from '#/lib/products'
 import { formatPriceEUR } from '#/lib/pricing'
+import { listTrendingSearches } from '#/lib/products'
+import { m } from '#/paraglide/messages'
+import { isUnmodifiedPrimaryClick } from './click-navigation'
 
 /**
  * Shown until search telemetry has accumulated enough real queries to rank.
@@ -13,28 +14,31 @@ import { formatPriceEUR } from '#/lib/pricing'
  */
 const FALLBACK_TRENDING_SEARCHES = ['ceramic', 'jewelry', 'wool', 'wood', 'leather', 'linen']
 
-const FEATURED_COLLECTIONS = [
-  {
-    title: m.search_featured_summer_title(),
-    description: m.search_featured_summer_description(),
-    href: '/search?q=summer',
-    color: 'bg-accent-primary-subtle text-accent-primary',
-  },
-  {
-    title: m.search_featured_under_price_title({ price: formatPriceEUR(2500) }),
-    description: m.search_featured_under_price_description(),
-    href: '/search?maxPrice=2500',
-    color: 'bg-accent-secondary-subtle text-accent-secondary',
-  },
-]
-
 interface SearchEmptyStateProps {
   onSelectQuery: (query: string) => void
+  onNavigate?: () => void
 }
 
-export default function SearchEmptyState({ onSelectQuery }: SearchEmptyStateProps) {
+export default function SearchEmptyState({ onSelectQuery, onNavigate }: SearchEmptyStateProps) {
   const { searches, removeSearch, clearSearches } = useRecentSearches()
-  const router = useRouter()
+
+  // Evaluated on render so labels update when the active locale changes.
+  const featuredCollections = [
+    {
+      id: 'summer',
+      title: m.search_featured_summer_title(),
+      description: m.search_featured_summer_description(),
+      search: { q: 'summer' as const },
+      color: 'bg-accent-primary-subtle text-accent-primary',
+    },
+    {
+      id: 'under-25',
+      title: m.search_featured_under_price_title({ price: formatPriceEUR(2500) }),
+      description: m.search_featured_under_price_description(),
+      search: { maxPrice: 2500 },
+      color: 'bg-accent-secondary-subtle text-accent-secondary',
+    },
+  ]
 
   // Real queries when telemetry has any, the curated list otherwise.
   const { data: popularQueries } = useQuery({
@@ -125,15 +129,20 @@ export default function SearchEmptyState({ onSelectQuery }: SearchEmptyStateProp
           {m.search_featured_collections()}
         </h3>
         <div className='grid gap-3 sm:grid-cols-2'>
-          {FEATURED_COLLECTIONS.map((collection) => (
+          {featuredCollections.map((collection) => (
             <Link
-              key={collection.title}
-              to={collection.href}
+              key={collection.id}
+              to='/search'
+              search={collection.search}
               className={cn(
                 'group rounded-xl border border-border-default p-4 transition-colors',
                 'hover:border-border-strong hover:shadow-sm',
               )}
-              onClick={() => router.navigate({ to: collection.href })}
+              onClick={(event) => {
+                if (isUnmodifiedPrimaryClick(event)) {
+                  onNavigate?.()
+                }
+              }}
             >
               <span
                 className={cn(

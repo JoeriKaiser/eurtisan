@@ -29,6 +29,7 @@ export async function detectCircularReference(
 
 const CATEGORY_ROOTS_CACHE_KEY = 'cache:categories:roots'
 const CATEGORY_TREE_CACHE_KEY = 'cache:categories:tree'
+const CATEGORY_COUNTS_CACHE_KEY = 'cache:categories:counts'
 const CATEGORY_CACHE_TTL_MS = 5 * 60_000
 
 export async function listCategoriesQuery() {
@@ -53,41 +54,46 @@ export async function listCategoryTreeQuery() {
 }
 
 export async function listCategoriesWithCountsQuery() {
-  const result = await db.execute(sql`
-    WITH RECURSIVE descendants AS (
-      SELECT id, id AS root_id
-      FROM category
-      WHERE parent_id IS NULL
-      UNION ALL
-      SELECT c.id, d.root_id
-      FROM category c
-      INNER JOIN descendants d ON c.parent_id = d.id
-    )
-    SELECT
-      cat.id,
-      cat.name,
-      cat.slug,
-      cat.description,
-      cat.parent_id AS "parentId",
-      cat.created_at AS "createdAt",
-      COUNT(p.id)::int AS "productCount"
-    FROM category cat
-    LEFT JOIN descendants d ON cat.id = d.root_id
-    LEFT JOIN product p ON p.category_id = d.id
-    WHERE cat.parent_id IS NULL
-    GROUP BY cat.id, cat.name, cat.slug, cat.description, cat.parent_id, cat.created_at
-    ORDER BY cat.name
-  `)
+  return withServerCache(CATEGORY_COUNTS_CACHE_KEY, CATEGORY_CACHE_TTL_MS, async () => {
+    const result = await db.execute(sql`
+      WITH RECURSIVE descendants AS (
+        SELECT id, id AS root_id
+        FROM category
+        WHERE parent_id IS NULL
+        UNION ALL
+        SELECT c.id, d.root_id
+        FROM category c
+        INNER JOIN descendants d ON c.parent_id = d.id
+      )
+      SELECT
+        cat.id,
+        cat.name,
+        cat.slug,
+        cat.description,
+        cat.parent_id AS "parentId",
+        cat.created_at AS "createdAt",
+        COUNT(s.id)::int AS "productCount"
+      FROM category cat
+      LEFT JOIN descendants d ON cat.id = d.root_id
+      LEFT JOIN product p
+        ON p.category_id = d.id AND p.status = 'published' AND p.is_active = true
+      LEFT JOIN shop s
+        ON s.id = p.shop_id AND s.status = 'active' AND s.is_suspended = false
+      WHERE cat.parent_id IS NULL
+      GROUP BY cat.id, cat.name, cat.slug, cat.description, cat.parent_id, cat.created_at
+      ORDER BY cat.name
+    `)
 
-  return result.rows as {
-    id: string
-    name: string
-    slug: string
-    description: string | null
-    parentId: null
-    createdAt: Date | null
-    productCount: number
-  }[]
+    return result.rows as {
+      id: string
+      name: string
+      slug: string
+      description: string | null
+      parentId: null
+      createdAt: Date | null
+      productCount: number
+    }[]
+  })
 }
 
 export async function getDescendantCategoryIds(categoryId: string): Promise<string[]> {

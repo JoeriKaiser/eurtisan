@@ -1,0 +1,1 @@
+CREATE INDEX "product_fts_en_nl_gin_idx" ON "product" USING gin ((to_tsvector('english', "name" || ' ' || coalesce("description", '')) || to_tsvector('dutch', "name" || ' ' || coalesce("description", '')))) WHERE "product"."status" = 'published' AND "product"."is_active" = true;

@@ -47,14 +47,37 @@ async function assertServerRateLimit(key: string, limit: number, windowMs: numbe
   await assertRateLimit(key, limit, windowMs)
 }
 
+async function assertServerMemoryRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<void> {
+  const { assertMemoryRateLimit } = await import('./rate-limit.server')
+  assertMemoryRateLimit(key, limit, windowMs)
+}
+
 /**
- * Create middleware that rate-limits by client IP.
+ * Create middleware that rate-limits by client IP (PostgreSQL-backed).
  */
 export function createIpRateLimitMiddleware(limit: number, windowMs: number, prefix: string) {
   return createMiddleware({ type: 'request' }).server(async ({ request, next }) => {
     const ip = extractClientIp(request)
     const key = `${prefix}:${ip}`
     await assertServerRateLimit(key, limit, windowMs)
+    return next()
+  })
+}
+
+/**
+ * Create middleware that rate-limits by client IP in process memory.
+ * Intended for high-frequency read-only endpoints (e.g. search autocomplete)
+ * where a database write per keystroke would dominate request latency.
+ */
+export function createMemoryIpRateLimitMiddleware(limit: number, windowMs: number, prefix: string) {
+  return createMiddleware({ type: 'request' }).server(async ({ request, next }) => {
+    const ip = extractClientIp(request)
+    const key = `${prefix}:${ip}`
+    await assertServerMemoryRateLimit(key, limit, windowMs)
     return next()
   })
 }

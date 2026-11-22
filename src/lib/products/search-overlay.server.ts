@@ -8,7 +8,11 @@
  * no search credential ships in the JavaScript bundle.
  */
 import { meilisearch } from '../meilisearch.server'
-import { isMeilisearchHealthy, PRODUCTS_INDEX } from './meilisearch.server'
+import {
+  isMeilisearchHealthy,
+  markMeilisearchUnhealthy,
+  PRODUCTS_INDEX,
+} from './meilisearch.server'
 import { searchProductsQuery } from './operations.server'
 import { humanizeSlug } from '../search/suggestions'
 
@@ -143,6 +147,7 @@ export async function searchOverlayQuery(query: string): Promise<OverlayResults>
           .slice(0, 6),
       }
     } catch {
+      markMeilisearchUnhealthy()
       // Fall through to the resilient query below.
     }
   }

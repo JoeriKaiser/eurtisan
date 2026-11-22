@@ -1,7 +1,8 @@
 import { and, asc, count, desc, eq, gt, gte, ilike, inArray, lte, ne, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, review, shop } from '#/db/schema'
-import { getDescendantCategoryIds } from '../categories.server'
+import { getDescendantCategoryIds, listCategoryTreeQuery } from '../categories.server'
+import { resolveDescendantCategorySlugs, rollupCategoryFacetCounts } from './categories-tree'
 import { decryptJsonb } from '../encryption.server'
 import { parsePublicOrigin } from '../shops/public-profile'
 import { PUBLIC_REVIEW_FILTER } from '../reviews/visibility.server'
@@ -697,19 +698,46 @@ export async function searchProductsQuery(
   const page = Math.max(1, pagination.page)
   const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
 
+  // Cached in memory (5 min TTL): lets category filtering include descendant
+  // subcategories and rolls leaf facet counts up into parent categories.
+  const categoryTree = await listCategoryTreeQuery()
+  const resolvedCategorySlugs =
+    filters.categorySlugs && filters.categorySlugs.length > 0
+      ? filters.categorySlugs
+      : filters.categorySlug
+        ? resolveDescendantCategorySlugs(categoryTree, filters.categorySlug)
+        : undefined
+  const resolvedFilters: SearchFilters = resolvedCategorySlugs
+    ? { ...filters, categorySlugs: resolvedCategorySlugs }
+    : filters
+
   const { searchProductsMeilisearch } = await import('../meilisearch-products.server')
-  const meiliResult = await searchProductsMeilisearch(trimmedQuery || undefined, filters, sort, {
-    page,
-    pageSize,
-  })
+  const meiliResult = await searchProductsMeilisearch(
+    trimmedQuery || undefined,
+    resolvedFilters,
+    sort,
+    {
+      page,
+      pageSize,
+    },
+  )
   if (meiliResult) {
     if (trimmedQuery) {
       searchQueriesTotal.inc({ has_results: meiliResult.total > 0 ? 'true' : 'false' })
-      await recordSearchEvent({
+      void recordSearchEvent({
         query: trimmedQuery,
         resultCount: meiliResult.total,
         source: 'meilisearch',
       })
+    }
+    if (meiliResult.facets && categoryTree.length > 0) {
+      return {
+        ...meiliResult,
+        facets: {
+          ...meiliResult.facets,
+          categorySlug: rollupCategoryFacetCounts(categoryTree, meiliResult.facets.categorySlug),
+        },
+      }
     }
     return meiliResult
   }
@@ -727,8 +755,12 @@ export async function searchProductsQuery(
     conditions.push(eq(shop.slug, filters.shopSlug))
   }
 
-  if (filters.categorySlug) {
-    conditions.push(eq(categories.slug, filters.categorySlug))
+  if (resolvedCategorySlugs && resolvedCategorySlugs.length > 0) {
+    if (resolvedCategorySlugs.length === 1) {
+      conditions.push(eq(categories.slug, resolvedCategorySlugs[0]))
+    } else {
+      conditions.push(inArray(categories.slug, resolvedCategorySlugs))
+    }
   }
 
   if (filters.minPriceCents !== undefined) {
@@ -751,9 +783,8 @@ export async function searchProductsQuery(
   if (trimmedQuery.length > 0) {
     if (useFts) {
       // Listings are written in English or Dutch, so stem against both
-      // dictionaries and OR the queries together. The English stemmer leaves
-      // Dutch inflections intact, so "sokken" never matched a search for
-      // "sok"; the Dutch stemmer reduces both to the same root.
+      // dictionaries and OR the queries together. The expression matches
+      // `product_fts_en_nl_gin_idx` so PostgreSQL can use the GIN index.
       const searchText = sql`${product.name} || ' ' || coalesce(${product.description}, '')`
       searchVector = sql`(to_tsvector('english', ${searchText}) || to_tsvector('dutch', ${searchText}))`
       plainQuery = sql`(plainto_tsquery('english', ${trimmedQuery}) || plainto_tsquery('dutch', ${trimmedQuery}))`
@@ -770,19 +801,9 @@ export async function searchProductsQuery(
   }
 
   const where = and(...conditions)
-
-  const [totalResult] = await db
-    .select({ total: count() })
-    .from(product)
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .leftJoin(categories, eq(product.categoryId, categories.id))
-    .where(where)
-
-  const total = totalResult?.total ?? 0
-
   const orderBy = buildSearchOrderBy(sort, useFts)
 
-  const products = await (() => {
+  const productsQuery = (() => {
     const base = db
       .select(listingProductColumns)
       .from(product)
@@ -802,12 +823,25 @@ export async function searchProductsQuery(
     return base.limit(pageSize).offset(offset)
   })()
 
+  const [[totalResult], products] = await Promise.all([
+    db
+      .select({ total: count() })
+      .from(product)
+      .innerJoin(shop, eq(product.shopId, shop.id))
+      .leftJoin(categories, eq(product.categoryId, categories.id))
+      .where(where),
+    productsQuery,
+  ])
+
+  const total = totalResult?.total ?? 0
+
   if (trimmedQuery) {
     searchQueriesTotal.inc({ has_results: total > 0 ? 'true' : 'false' })
-    await recordSearchEvent({ query: trimmedQuery, resultCount: total, source: 'postgres' })
+    void recordSearchEvent({ query: trimmedQuery, resultCount: total, source: 'postgres' })
   }
 
-  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
+  const imageUrls =
+    products.length > 0 ? await fetchFirstImageUrls(products.map((p) => p.id)) : new Map()
 
   return {
     products: products.map((p) => ({

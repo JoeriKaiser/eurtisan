@@ -1675,6 +1675,32 @@ describe('searchProductsQuery', () => {
     expect(result.products.map((p) => p.name)).toContain('vase-like')
   })
 
+  it('includes products in descendant subcategories when filtering by a parent category slug', async () => {
+    const { s1, c1 } = await seedSearchProducts()
+    const subCategory = await createCategory({
+      name: 'Tea Cups',
+      slug: 'tea-cups',
+      parentId: c1.id,
+    })
+    await createProduct(s1, {
+      name: 'Stoneware Tea Cup',
+      slug: 'stoneware-tea-cup',
+      priceCents: 1800,
+      categoryId: subCategory.id,
+      status: 'published',
+      isActive: true,
+    })
+    // Invalidate cached category tree after adding a new category in this test.
+    clearServerCacheForTests()
+
+    const result = await searchProductsQuery(undefined, { categorySlug: 'pottery' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products.map((p) => p.name)).toContain('Stoneware Tea Cup')
+    expect(result.products.map((p) => p.name)).toContain('Ceramic Vase')
+  })
+
   it('filters by min price', async () => {
     await seedSearchProducts()
 

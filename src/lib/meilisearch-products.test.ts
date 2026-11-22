@@ -18,11 +18,13 @@ import {
 
 import {
   configureProductsIndex,
+  isMeilisearchHealthy,
   PRODUCTS_INDEX,
   populateProductsIndex,
   processMeilisearchSyncQueue,
   removeProductFromMeilisearch,
   removeShopProductsFromMeilisearch,
+  resetMeilisearchHealthCacheForTests,
   searchProductsMeilisearch,
   syncProductToMeilisearch,
 } from './meilisearch-products.server'
@@ -65,6 +67,7 @@ vi.mock('./meilisearch.server', () => ({
 
 beforeEach(async () => {
   await clearTestTables()
+  resetMeilisearchHealthCacheForTests()
 
   mockAddDocuments.mockClear()
   mockUpdateSettings.mockClear()
@@ -756,7 +759,7 @@ describe('searchProductsMeilisearch', () => {
     )
   })
 
-  it('falls back to null on search error', async () => {
+  it('falls back to null on search error and short-circuits immediate retries', async () => {
     mockSearch.mockRejectedValueOnce(new Error('search error'))
 
     const result = await searchProductsMeilisearch('vase', {}, 'relevance', {
@@ -764,6 +767,52 @@ describe('searchProductsMeilisearch', () => {
       pageSize: 10,
     })
     expect(result).toBeNull()
+
+    // Subsequent searches during the unhealthy cooldown skip Meilisearch without
+    // making another health or search HTTP call.
+    mockHealth.mockClear()
+    mockSearch.mockClear()
+    const second = await searchProductsMeilisearch('vase', {}, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(second).toBeNull()
+    expect(mockHealth).not.toHaveBeenCalled()
+    expect(mockSearch).not.toHaveBeenCalled()
+  })
+
+  it('caches healthy probes across consecutive searches and supports fresh probes', async () => {
+    await seedSearchData()
+    mockSearch.mockResolvedValue({ hits: [], totalHits: 0 })
+
+    await searchProductsMeilisearch('vase', {}, 'relevance', { page: 1, pageSize: 10 })
+    await searchProductsMeilisearch('bowl', {}, 'relevance', { page: 1, pageSize: 10 })
+    expect(mockHealth).toHaveBeenCalledTimes(1)
+
+    await expect(isMeilisearchHealthy({ fresh: true })).resolves.toBe(true)
+    expect(mockHealth).toHaveBeenCalledTimes(2)
+  })
+
+  it('filters across multiple descendant slugs using IN syntax', async () => {
+    await seedSearchData()
+    mockSearch.mockResolvedValueOnce({ hits: [{ id: 'prod-1' }], totalHits: 1 })
+
+    await searchProductsMeilisearch(
+      undefined,
+      { categorySlug: 'pottery', categorySlugs: ['pottery', 'vases', 'mugs'] },
+      'relevance',
+      { page: 1, pageSize: 10 },
+    )
+
+    expect(mockSearch).toHaveBeenCalledWith(
+      '',
+      expect.objectContaining({
+        filter: expect.arrayContaining([
+          'isActive = true',
+          'categorySlug IN ["pottery", "vases", "mugs"]',
+        ]),
+      }),
+    )
   })
 })
 

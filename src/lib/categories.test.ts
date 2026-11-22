@@ -24,6 +24,10 @@ import {
   updateCategorySchema,
 } from './categories'
 import {
+  resolveDescendantCategorySlugs,
+  rollupCategoryFacetCounts,
+} from './products/categories-tree'
+import {
   deleteCategoryInternal,
   detectCircularReference,
   getCategoryBreadcrumbs,
@@ -252,6 +256,48 @@ describe('buildCategoryTree', () => {
   })
 })
 
+describe('resolveDescendantCategorySlugs and rollupCategoryFacetCounts', () => {
+  const tree = buildCategoryTree([
+    { id: '1', name: 'Ceramics', slug: 'ceramics', parentId: null },
+    { id: '2', name: 'Mugs', slug: 'mugs', parentId: '1' },
+    { id: '3', name: 'Espresso Mugs', slug: 'espresso-mugs', parentId: '2' },
+    { id: '4', name: 'Vases', slug: 'vases', parentId: '1' },
+    { id: '5', name: 'Textiles', slug: 'textiles', parentId: null },
+  ])
+
+  it('expands a parent category slug to include every descendant slug', () => {
+    expect(resolveDescendantCategorySlugs(tree, 'ceramics')).toEqual([
+      'ceramics',
+      'mugs',
+      'espresso-mugs',
+      'vases',
+    ])
+    expect(resolveDescendantCategorySlugs(tree, 'mugs')).toEqual(['mugs', 'espresso-mugs'])
+    expect(resolveDescendantCategorySlugs(tree, 'textiles')).toEqual(['textiles'])
+  })
+
+  it('falls back to the input slug when it is absent from the tree', () => {
+    expect(resolveDescendantCategorySlugs(tree, 'unknown-cat')).toEqual(['unknown-cat'])
+  })
+
+  it('rolls leaf facet counts up into ancestor categories', () => {
+    const rolled = rollupCategoryFacetCounts(tree, {
+      ceramics: 2,
+      'espresso-mugs': 5,
+      vases: 3,
+      orphan: 1,
+    })
+
+    expect(rolled).toEqual({
+      ceramics: 10,
+      mugs: 5,
+      'espresso-mugs': 5,
+      vases: 3,
+      orphan: 1,
+    })
+  })
+})
+
 describe('listCategories', () => {
   it('returns only root categories', async () => {
     const [root1] = await db
@@ -416,6 +462,85 @@ describe('listCategoriesWithCountsQuery', () => {
     expect(result).toHaveLength(1)
     expect(result[0].slug).toBe('root')
     expect(result.map((c) => c.slug)).not.toContain('child')
+  })
+
+  it('counts only published active products in active non-suspended shops', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-counts', name: 'Test', email: 'counts@example.com', emailVerified: true })
+      .returning()
+    const [activeShop] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-active',
+        name: 'Active',
+        slug: 'active-shop',
+        ownerId: u.id,
+        status: 'active',
+      })
+      .returning()
+    const [suspendedShop] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-susp',
+        name: 'Suspended',
+        slug: 'susp-shop',
+        ownerId: u.id,
+        status: 'active',
+        isSuspended: true,
+      })
+      .returning()
+    const [root] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    await db.insert(product).values([
+      {
+        id: 'p-vis',
+        name: 'Visible',
+        slug: 'visible',
+        priceCents: 1000,
+        shopId: activeShop.id,
+        categoryId: root.id,
+        status: 'published',
+        isActive: true,
+      },
+      {
+        id: 'p-draft',
+        name: 'Draft',
+        slug: 'draft',
+        priceCents: 1000,
+        shopId: activeShop.id,
+        categoryId: root.id,
+        status: 'draft',
+        isActive: true,
+      },
+      {
+        id: 'p-inactive',
+        name: 'Inactive',
+        slug: 'inactive',
+        priceCents: 1000,
+        shopId: activeShop.id,
+        categoryId: root.id,
+        status: 'published',
+        isActive: false,
+      },
+      {
+        id: 'p-susp',
+        name: 'Suspended',
+        slug: 'suspended',
+        priceCents: 1000,
+        shopId: suspendedShop.id,
+        categoryId: root.id,
+        status: 'published',
+        isActive: true,
+      },
+    ])
+
+    const result = await listCategoriesWithCountsQuery()
+    expect(result).toHaveLength(1)
+    expect(result[0].productCount).toBe(1)
   })
 })
 
