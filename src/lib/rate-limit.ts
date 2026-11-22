@@ -1,5 +1,6 @@
 export {
   createIpRateLimitMiddleware,
+  createMemoryIpRateLimitMiddleware,
   createUserRateLimitMiddleware,
   extractClientIp,
   isAuthRateLimitedAction,

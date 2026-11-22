@@ -56,4 +56,22 @@ test.describe('Search overlay', () => {
       page.getByRole('dialog', { name: 'Search' }).getByText(/eurtisan-recent/i),
     ).toBeVisible()
   })
+
+  test('closes the search overlay after clicking a category during a search', async ({ page }) => {
+    await page.goto('/')
+    await waitForAppHydration(page)
+
+    await page.getByRole('button', { name: /search products/i }).click()
+    const dialog = page.getByRole('dialog', { name: 'Search' })
+    const searchbox = getOverlaySearchbox(page)
+    await searchbox.fill('ceramic')
+
+    // Wait for matching categories to appear inside the overlay.
+    const categoryLink = dialog.locator('a[href^="/category/"]').first()
+    await expect(categoryLink).toBeVisible({ timeout: 10000 })
+
+    await categoryLink.click()
+    await page.waitForURL(/\/category\//)
+    await expect(dialog).toBeHidden()
+  })
 })

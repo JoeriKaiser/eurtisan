@@ -18,6 +18,7 @@ export function SearchPage() {
     data.shopSlug,
     data.minPriceCents,
     data.maxPriceCents,
+    data.inStockOnly,
     data.sort,
   ].join(':')
   return <SearchPageContent key={stateKey} />
@@ -38,7 +39,15 @@ function SearchPageContent() {
   } = useLoaderData({ from: '/search' })
   const router = useRouter()
 
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<{
+    query: string
+    category: string
+    shop: string
+    minPrice: string
+    maxPrice: string
+    inStock: string
+    sort: string
+  }>({
     query: query ?? '',
     category: categorySlug ?? '',
     shop: shopSlug ?? '',
@@ -183,7 +192,7 @@ function SearchPageContent() {
                   navigateWithParams({ q: undefined, page: 1 })
                 }}
                 className='absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:text-text-primary'
-                aria-label={m.search_clear_filters()}
+                aria-label={m.search_clear_input()}
               >
                 <X size={14} aria-hidden='true' />
               </button>

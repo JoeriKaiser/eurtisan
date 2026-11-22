@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
@@ -22,18 +22,34 @@ import SearchInput from './SearchInput'
 import SearchResultsPanel from './SearchResultsPanel'
 import SearchSuggestions from './SearchSuggestions'
 
+interface SearchOverlayCategory {
+  id: string
+  name: string
+  slug: string
+}
+
 interface SearchOverlayProps {
   isOpen: boolean
   onClose: () => void
+  /** Preloaded root categories from the root route loader to avoid a redundant fetch on open. */
+  initialCategories?: readonly SearchOverlayCategory[]
 }
 
 const LISTBOX_ID = 'search-suggestions'
 const optionId = (index: number) => `search-suggestion-${index}`
+const DEBOUNCE_MS = 150
+const MAX_BROWSE_CATEGORIES = 8
 
-export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
+export default function SearchOverlay({ isOpen, onClose, initialCategories }: SearchOverlayProps) {
   const navigate = useNavigate()
+  const router = useRouter()
+  const routerRef = useRef(router)
+  routerRef.current = router
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   const { addSearch } = useRecentSearches()
   const trackClick = useSearchClickTracking()
 
@@ -41,54 +57,102 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
 
+  const trimmedQuery = query.trim()
+  const trimmedDebouncedQuery = debouncedQuery.trim()
+  const hasQuery = trimmedQuery.length > 0
+  const isDebouncing = hasQuery && trimmedQuery !== trimmedDebouncedQuery
+
   // One request covers products, category facets, and highlighting.
   const {
     data: results,
     isLoading: resultsLoading,
+    isFetching: resultsFetching,
+    isPlaceholderData,
     isError: resultsError,
   } = useSearchOverlayResults(debouncedQuery, isOpen)
 
-  // Browsing state (no query) still lists the full category tree.
-  const { categories: browseCategories, isLoading: browseCategoriesLoading } = useSearchCategories(
-    query,
-    isOpen,
+  // Only fetch root categories when the caller did not pass preloaded ones and
+  // the overlay is in browse mode (empty query).
+  const hasPreloadedCategories = initialCategories !== undefined && initialCategories.length > 0
+  const { categories: fetchedBrowseCategories, isLoading: fetchedCategoriesLoading } =
+    useSearchCategories('', isOpen && !hasQuery && !hasPreloadedCategories)
+
+  const browseCategories = useMemo(
+    () =>
+      hasPreloadedCategories
+        ? initialCategories.slice(0, MAX_BROWSE_CATEGORIES)
+        : fetchedBrowseCategories,
+    [hasPreloadedCategories, initialCategories, fetchedBrowseCategories],
   )
+  const browseCategoriesLoading = !hasPreloadedCategories && fetchedCategoriesLoading
+
+  const isStaleResults = Boolean(isPlaceholderData) || isDebouncing
+  const freshResults = !isPlaceholderData && !isDebouncing ? results : undefined
 
   const suggestions = useMemo(
-    () => buildSuggestions(debouncedQuery, results?.products ?? [], results?.categories ?? []),
-    [debouncedQuery, results],
+    () =>
+      buildSuggestions(trimmedQuery, freshResults?.products ?? [], freshResults?.categories ?? []),
+    [trimmedQuery, freshResults],
   )
 
   const resultCategories = useMemo(
     () =>
-      (results?.categories ?? []).map((category) => ({
+      (freshResults?.categories ?? []).map((category) => ({
         id: category.slug,
         name: category.name,
         slug: category.slug,
         count: category.count,
       })),
-    [results],
+    [freshResults],
   )
 
-  const popupOwnerRef = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return
-    return () => {
-      if (debounceTimerRef.current !== undefined) clearTimeout(debounceTimerRef.current)
+  const clearDebounceTimer = useCallback(() => {
+    if (debounceTimerRef.current !== undefined) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = undefined
     }
   }, [])
 
-  const handleQueryChange = useCallback((value: string) => {
-    setQuery(value)
-    setActiveIndex(-1)
-    if (debounceTimerRef.current !== undefined) clearTimeout(debounceTimerRef.current)
-    debounceTimerRef.current = setTimeout(() => setDebouncedQuery(value), 150)
-  }, [])
+  const popupOwnerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return
+      // Guarantee the overlay never stays open across any route transition,
+      // including nested links and browser back/forward navigation.
+      const unsubscribe =
+        typeof routerRef.current.subscribe === 'function'
+          ? routerRef.current.subscribe('onBeforeNavigate', () => onCloseRef.current())
+          : undefined
+      return () => {
+        clearDebounceTimer()
+        unsubscribe?.()
+      }
+    },
+    [clearDebounceTimer],
+  )
+
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setQuery(value)
+      setActiveIndex(-1)
+      clearDebounceTimer()
+      if (!value.trim()) {
+        setDebouncedQuery('')
+        return
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = undefined
+        setDebouncedQuery(value)
+      }, DEBOUNCE_MS)
+    },
+    [clearDebounceTimer],
+  )
 
   const executeSearch = useCallback(
     (searchQuery: string) => {
       const trimmed = searchQuery.trim()
       if (!trimmed) return
 
+      clearDebounceTimer()
       addSearch(trimmed)
       onClose()
 
@@ -97,37 +161,53 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         search: { q: trimmed },
       })
     },
-    [addSearch, navigate, onClose],
+    [clearDebounceTimer, addSearch, navigate, onClose],
   )
 
   const handleSelectSuggestion = useCallback(
-    (suggestion: SearchSuggestion) => {
+    (suggestion: SearchSuggestion, options?: { fromLink?: boolean }) => {
       if (suggestion.type === 'query') {
         executeSearch(suggestion.label)
         return
       }
       if (!suggestion.href) return
 
-      // A product suggestion is a search result being opened; record its rank.
-      if (suggestion.type === 'product') {
-        const position = (results?.products ?? []).findIndex((p) => p.slug === suggestion.slug)
-        const product = position >= 0 ? results?.products[position] : undefined
-        if (product) trackClick(debouncedQuery, product.id, position + 1)
+      // A product suggestion is a search result being opened; record its rank
+      // only against fresh results so clicks are never attributed to a stale query.
+      if (suggestion.type === 'product' && freshResults) {
+        const position = freshResults.products.findIndex((p) => p.slug === suggestion.slug)
+        const product = position >= 0 ? freshResults.products[position] : undefined
+        if (product) trackClick(trimmedDebouncedQuery, product.id, position + 1)
       }
 
+      clearDebounceTimer()
       addSearch(suggestion.label)
       onClose()
-      navigate({ to: suggestion.href })
+      if (!options?.fromLink) {
+        navigate({ to: suggestion.href })
+      }
     },
-    [executeSearch, addSearch, navigate, onClose, results, trackClick, debouncedQuery],
+    [
+      executeSearch,
+      freshResults,
+      trackClick,
+      trimmedDebouncedQuery,
+      clearDebounceTimer,
+      addSearch,
+      onClose,
+      navigate,
+    ],
   )
 
   const handleSelectResult = useCallback(
     (product: OverlayProduct, position: number) => {
-      trackClick(debouncedQuery, product.id, position)
+      if (!isStaleResults && trimmedDebouncedQuery) {
+        trackClick(trimmedDebouncedQuery, product.id, position)
+      }
+      clearDebounceTimer()
       onClose()
     },
-    [trackClick, debouncedQuery, onClose],
+    [isStaleResults, trimmedDebouncedQuery, trackClick, clearDebounceTimer, onClose],
   )
 
   const handleSubmit = useCallback(() => {
@@ -138,25 +218,30 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     }
   }, [activeIndex, suggestions, handleSelectSuggestion, executeSearch, query])
 
+  const handleClear = useCallback(() => {
+    clearDebounceTimer()
+    setQuery('')
+    setDebouncedQuery('')
+    setActiveIndex(-1)
+    inputRef.current?.focus()
+  }, [clearDebounceTimer])
+
   const handleContainerKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
         if (query.length > 0) {
-          setQuery('')
-          setDebouncedQuery('')
-          setActiveIndex(-1)
-          inputRef.current?.focus()
+          handleClear()
         } else {
           onClose()
         }
-      } else if (e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowDown' && hasQuery && suggestions.length > 0) {
         e.preventDefault()
         setActiveIndex((prev) => {
           const next = prev + 1
           return next >= suggestions.length ? 0 : next
         })
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp' && hasQuery && suggestions.length > 0) {
         e.preventDefault()
         setActiveIndex((prev) => {
           const next = prev - 1
@@ -164,19 +249,21 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         })
       }
     },
-    [query, onClose, suggestions.length],
+    [query.length, handleClear, onClose, hasQuery, suggestions.length],
   )
 
-  const handleClear = useCallback(() => {
-    setQuery('')
-    setDebouncedQuery('')
-    setActiveIndex(-1)
-    inputRef.current?.focus()
-  }, [])
-
-  const hasQuery = query.trim().length > 0
   const products = results?.products ?? []
-  const hasNoResults = hasQuery && !resultsLoading && !resultsError && products.length === 0
+  const showInitialLoading =
+    hasQuery &&
+    !resultsError &&
+    (resultsLoading || ((isDebouncing || Boolean(isPlaceholderData)) && products.length === 0))
+  const hasNoResults =
+    hasQuery &&
+    !isDebouncing &&
+    !resultsLoading &&
+    !isPlaceholderData &&
+    !resultsError &&
+    products.length === 0
 
   if (!isOpen) return null
 
@@ -215,7 +302,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               <>
                 <SearchSuggestions
                   suggestions={suggestions}
-                  isLoading={resultsLoading}
+                  isLoading={showInitialLoading}
                   activeIndex={activeIndex}
                   listboxId={LISTBOX_ID}
                   optionId={optionId}
@@ -228,6 +315,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       categories={resultCategories}
                       isLoading={false}
                       query={query}
+                      onSelectCategory={onClose}
                     />
                   </div>
                 ) : null}
@@ -239,9 +327,11 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       products={products}
                       total={results?.total ?? 0}
                       query={query}
-                      isLoading={resultsLoading}
+                      isLoading={showInitialLoading}
                       isError={resultsError}
+                      isStale={isStaleResults && resultsFetching}
                       onSelectResult={handleSelectResult}
+                      onViewAll={() => executeSearch(query)}
                     />
                   )}
                 </div>
@@ -252,9 +342,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   categories={browseCategories}
                   isLoading={browseCategoriesLoading}
                   query={query}
+                  onSelectCategory={onClose}
                 />
                 <div className='border-t border-border-default'>
-                  <SearchEmptyState onSelectQuery={(q) => executeSearch(q)} />
+                  <SearchEmptyState onSelectQuery={executeSearch} onNavigate={onClose} />
                 </div>
               </>
             )}

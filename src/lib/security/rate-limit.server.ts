@@ -126,6 +126,112 @@ export async function assertRateLimit(key: string, limit: number, windowMs: numb
   }
 }
 
+/**
+ * Upper bound on distinct keys tracked by the process-local memory limiter.
+ * Prevents unbounded heap growth under IP-spray traffic while keeping lookups
+ * O(1) without touching PostgreSQL on every keystroke.
+ */
+const MAX_MEMORY_RATE_LIMIT_ENTRIES = 10_000
+
+interface MemoryRateLimitEntry {
+  windowStartMs: number
+  count: number
+  expiresAtMs: number
+}
+
+const memoryBuckets = new Map<string, MemoryRateLimitEntry>()
+
+function evictExpiredMemoryBuckets(nowMs: number): void {
+  for (const [key, entry] of memoryBuckets) {
+    if (entry.expiresAtMs <= nowMs) {
+      memoryBuckets.delete(key)
+    }
+  }
+}
+
+/**
+ * Process-local fixed-window rate limiter for high-frequency read-only
+ * endpoints such as search typeahead. Avoids a PostgreSQL write transaction on
+ * every keystroke while still enforcing per-IP caps within bounded memory.
+ */
+export function checkRateLimitMemory(
+  key: string,
+  limit: number,
+  windowMs: number,
+  nowMs = Date.now(),
+): RateLimitResult {
+  const windowStartMs = Math.floor(nowMs / windowMs) * windowMs
+  const expiresAtMs = windowStartMs + windowMs
+  const resetAt = new Date(expiresAtMs)
+  const retryAfterSeconds = Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1000))
+
+  const existing = memoryBuckets.get(key)
+  let count: number
+
+  if (existing && existing.windowStartMs === windowStartMs) {
+    count = existing.count + 1
+    // Refresh insertion order for oldest-first eviction when at capacity.
+    memoryBuckets.delete(key)
+    memoryBuckets.set(key, { windowStartMs, count, expiresAtMs })
+  } else {
+    if (memoryBuckets.size >= MAX_MEMORY_RATE_LIMIT_ENTRIES) {
+      evictExpiredMemoryBuckets(nowMs)
+      while (memoryBuckets.size >= MAX_MEMORY_RATE_LIMIT_ENTRIES) {
+        const oldestKey = memoryBuckets.keys().next().value
+        if (oldestKey === undefined) break
+        memoryBuckets.delete(oldestKey)
+      }
+    }
+    count = 1
+    memoryBuckets.set(key, { windowStartMs, count, expiresAtMs })
+  }
+
+  if (count > limit) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt,
+      retryAfterSeconds,
+    }
+  }
+
+  return {
+    allowed: true,
+    remaining: limit - count,
+    resetAt,
+    retryAfterSeconds: 0,
+  }
+}
+
+/**
+ * Enforce a process-local rate limit, throwing HTTP 429 when exceeded.
+ * Bypassed in test environments to match `checkRateLimit`.
+ */
+export function assertMemoryRateLimit(key: string, limit: number, windowMs: number): void {
+  if (isTestEnvironment()) return
+  const result = checkRateLimitMemory(key, limit, windowMs)
+  if (!result.allowed) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Too Many Requests',
+        message: 'Rate limit exceeded. Please try again later.',
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(result.retryAfterSeconds),
+        },
+      },
+    )
+  }
+}
+
+/** @internal Reset in-memory rate-limit buckets between tests. */
+export function clearMemoryRateLimitsForTests(): void {
+  memoryBuckets.clear()
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Auth endpoint helpers                                                     */
 /* -------------------------------------------------------------------------- */

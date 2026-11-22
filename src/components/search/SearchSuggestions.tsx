@@ -3,6 +3,7 @@ import { ArrowRight, Package, Search } from 'lucide-react'
 import { cn } from '#/lib/cn'
 import type { SearchSuggestion } from '#/lib/search/suggestions'
 import { m } from '#/paraglide/messages'
+import { isUnmodifiedPrimaryClick } from './click-navigation'
 
 interface SearchSuggestionsProps {
   suggestions: SearchSuggestion[]
@@ -10,7 +11,7 @@ interface SearchSuggestionsProps {
   activeIndex: number
   listboxId: string
   optionId: (index: number) => string
-  onSelect: (suggestion: SearchSuggestion) => void
+  onSelect: (suggestion: SearchSuggestion, options?: { fromLink?: boolean }) => void
   onHover: (index: number) => void
 }
 
@@ -120,8 +121,9 @@ export default function SearchSuggestions({
                 tabIndex={-1}
                 className={className}
                 onClick={(e) => {
+                  if (!isUnmodifiedPrimaryClick(e)) return
                   e.stopPropagation()
-                  onSelect(suggestion)
+                  onSelect(suggestion, { fromLink: true })
                 }}
               >
                 {body}

@@ -95,4 +95,13 @@ describe('SearchFilters', () => {
     expect(screen.getByLabelText(/min price/i)).toBeDefined()
     expect(screen.getByLabelText(/max price/i)).toBeDefined()
   })
+
+  it('does not navigate when a price input blurs without changing value', () => {
+    const { navigateWithParams } = renderFilters()
+
+    fireEvent.blur(screen.getByLabelText(/min price/i))
+    fireEvent.blur(screen.getByLabelText(/max price/i))
+
+    expect(navigateWithParams).not.toHaveBeenCalled()
+  })
 })

@@ -169,14 +169,74 @@ export interface MeilisearchProductDocument {
   createdAt: string
 }
 
-export async function isMeilisearchHealthy(): Promise<boolean> {
-  if (!isMeilisearchConfigured() || !meilisearch) return false
-  try {
-    const health = await meilisearch.health()
-    return health.status === 'available'
-  } catch {
-    return false
+const MEILISEARCH_HEALTHY_TTL_MS = 30_000
+const MEILISEARCH_UNHEALTHY_TTL_MS = 10_000
+
+let healthCache: { healthy: boolean; expiresAtMs: number } | null = null
+let inFlightHealthCheck: Promise<boolean> | null = null
+
+/**
+ * Mark Meilisearch unhealthy immediately so subsequent searches fail over to
+ * PostgreSQL without waiting for repeated network timeouts during an outage.
+ */
+export function markMeilisearchUnhealthy(): void {
+  healthCache = {
+    healthy: false,
+    expiresAtMs: Date.now() + MEILISEARCH_UNHEALTHY_TTL_MS,
   }
+}
+
+/** @internal Reset cached health status between tests. */
+export function resetMeilisearchHealthCacheForTests(): void {
+  healthCache = null
+  inFlightHealthCheck = null
+}
+
+/**
+ * Check whether Meilisearch is reachable.
+ *
+ * Uses a short-TTL process-local cache (30s healthy, 10s unhealthy) and
+ * coalesces concurrent probes so search traffic does not pay an extra `/health`
+ * HTTP round trip on every query. Health endpoints pass `{ fresh: true }` to
+ * bypass the cache and refresh it.
+ */
+export async function isMeilisearchHealthy(options?: { fresh?: boolean }): Promise<boolean> {
+  if (!isMeilisearchConfigured() || !meilisearch) return false
+
+  const now = Date.now()
+  if (!options?.fresh && healthCache && healthCache.expiresAtMs > now) {
+    return healthCache.healthy
+  }
+
+  if (!options?.fresh && inFlightHealthCheck) {
+    return inFlightHealthCheck
+  }
+
+  const client = meilisearch
+  const runProbe = async (): Promise<boolean> => {
+    try {
+      const health = await client.health()
+      const healthy = health.status === 'available'
+      healthCache = {
+        healthy,
+        expiresAtMs:
+          Date.now() + (healthy ? MEILISEARCH_HEALTHY_TTL_MS : MEILISEARCH_UNHEALTHY_TTL_MS),
+      }
+      return healthy
+    } catch {
+      markMeilisearchUnhealthy()
+      return false
+    }
+  }
+
+  const probe = runProbe()
+  inFlightHealthCheck = probe
+  void probe.finally(() => {
+    if (inFlightHealthCheck === probe) {
+      inFlightHealthCheck = null
+    }
+  })
+  return probe
 }
 
 export async function configureProductsIndex(indexUid: string = PRODUCTS_INDEX): Promise<void> {
@@ -517,7 +577,14 @@ export async function searchProductsMeilisearch(
     meiliFilters.push(`shopSlug = "${escapeFilterValue(filters.shopSlug)}"`)
   }
 
-  if (filters.categorySlug) {
+  if (filters.categorySlugs && filters.categorySlugs.length > 0) {
+    if (filters.categorySlugs.length === 1) {
+      meiliFilters.push(`categorySlug = "${escapeFilterValue(filters.categorySlugs[0])}"`)
+    } else {
+      const quoted = filters.categorySlugs.map((slug) => `"${escapeFilterValue(slug)}"`).join(', ')
+      meiliFilters.push(`categorySlug IN [${quoted}]`)
+    }
+  } else if (filters.categorySlug) {
     meiliFilters.push(`categorySlug = "${escapeFilterValue(filters.categorySlug)}"`)
   }
 
@@ -578,38 +645,41 @@ export async function searchProductsMeilisearch(
 
     const ids = hits.map((h) => h.id)
 
-    const rows = await db
-      .select({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        slug: product.slug,
-        priceCents: product.priceCents,
-        stockCount: product.stockCount,
-        isActive: product.isActive,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-        categoryName: categories.name,
-        categorySlug: categories.slug,
-        shopName: shop.name,
-        shopSlug: shop.slug,
-        shopIsVatRegistered: shop.isVatRegistered,
-        weightGrams: product.weightGrams,
-        volumeMl: product.volumeMl,
-        soldBy: product.soldBy,
-      })
-      .from(product)
-      .innerJoin(shop, eq(product.shopId, shop.id))
-      .leftJoin(categories, eq(product.categoryId, categories.id))
-      .where(
-        and(
-          eq(shop.status, 'active'),
-          eq(shop.isSuspended, false),
-          eq(product.status, 'published'),
-          eq(product.isActive, true),
-          inArray(product.id, ids),
+    const [rows, imageUrls] = await Promise.all([
+      db
+        .select({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          slug: product.slug,
+          priceCents: product.priceCents,
+          stockCount: product.stockCount,
+          isActive: product.isActive,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+          categoryName: categories.name,
+          categorySlug: categories.slug,
+          shopName: shop.name,
+          shopSlug: shop.slug,
+          shopIsVatRegistered: shop.isVatRegistered,
+          weightGrams: product.weightGrams,
+          volumeMl: product.volumeMl,
+          soldBy: product.soldBy,
+        })
+        .from(product)
+        .innerJoin(shop, eq(product.shopId, shop.id))
+        .leftJoin(categories, eq(product.categoryId, categories.id))
+        .where(
+          and(
+            eq(shop.status, 'active'),
+            eq(shop.isSuspended, false),
+            eq(product.status, 'published'),
+            eq(product.isActive, true),
+            inArray(product.id, ids),
+          ),
         ),
-      )
+      fetchFirstImageUrls(ids),
+    ])
 
     const rowMap = new Map(rows.map((r) => [r.id, r]))
     const orderedRows = ids.map((id) => rowMap.get(id)).filter((p) => p !== undefined)
@@ -643,7 +713,6 @@ export async function searchProductsMeilisearch(
 
     const total = Math.max(orderedRows.length, reportedTotal - staleIds.length)
 
-    const imageUrls = await fetchFirstImageUrls(orderedRows.map((p) => p.id))
     const orderedProducts = orderedRows.map((p) => ({
       ...p,
       imageUrl: imageUrls.get(p.id) ?? null,
@@ -658,6 +727,7 @@ export async function searchProductsMeilisearch(
       facets,
     }
   } catch (err) {
+    markMeilisearchUnhealthy()
     logger.error('Meilisearch search failed, falling back to PostgreSQL', err)
     return null
   }

@@ -51,7 +51,7 @@ async function checkDatabase(): Promise<boolean> {
 }
 
 async function checkMeilisearch(): Promise<boolean> {
-  return isMeilisearchHealthy()
+  return isMeilisearchHealthy({ fresh: true })
 }
 
 async function checkMollie(): Promise<'connected' | 'disconnected' | 'skipped'> {

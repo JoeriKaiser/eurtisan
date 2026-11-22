@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EMPTY_OVERLAY_RESULTS, searchOverlayQuery } from './search-overlay.server'
 
-const { mockMultiSearch, mockHealthy, mockFallbackQuery } = vi.hoisted(() => ({
+const { mockMultiSearch, mockHealthy, mockMarkUnhealthy, mockFallbackQuery } = vi.hoisted(() => ({
   mockMultiSearch: vi.fn(),
   mockHealthy: vi.fn().mockResolvedValue(true),
+  mockMarkUnhealthy: vi.fn(),
   mockFallbackQuery: vi.fn(),
 }))
 
@@ -18,6 +19,7 @@ vi.mock('../meilisearch.server', () => ({
 
 vi.mock('./meilisearch.server', () => ({
   isMeilisearchHealthy: mockHealthy,
+  markMeilisearchUnhealthy: mockMarkUnhealthy,
   PRODUCTS_INDEX: 'products',
 }))
 vi.mock('./operations.server', () => ({
@@ -122,7 +124,7 @@ describe('searchOverlayQuery', () => {
     expect(result.categories).toEqual([{ slug: 'pottery', name: 'Pottery', count: 1 }])
   })
 
-  it('falls back when the Meilisearch request errors mid-flight', async () => {
+  it('falls back and trips the health circuit when the Meilisearch request errors mid-flight', async () => {
     mockMultiSearch.mockRejectedValueOnce(new Error('connection reset'))
     mockFallbackQuery.mockResolvedValueOnce({ products: [], total: 0 })
 
@@ -131,6 +133,7 @@ describe('searchOverlayQuery', () => {
       total: 0,
       categories: [],
     })
+    expect(mockMarkUnhealthy).toHaveBeenCalledTimes(1)
     expect(mockFallbackQuery).toHaveBeenCalledTimes(1)
   })
 

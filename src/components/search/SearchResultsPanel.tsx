@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Skeleton } from '#/components/ui/skeleton'
 import type { OverlayProduct } from '#/hooks/useSearchOverlayResults'
+import { cn } from '#/lib/cn'
 import { m } from '#/paraglide/messages'
 import SearchResultCard from './SearchResultCard'
 
@@ -10,8 +11,11 @@ interface SearchResultsPanelProps {
   query: string
   isLoading: boolean
   isError: boolean
+  /** True when displaying previous query results while a new query is in flight. */
+  isStale?: boolean
   /** Called with the 1-based rank of the opened result, for click analytics. */
   onSelectResult?: (product: OverlayProduct, position: number) => void
+  onViewAll?: () => void
 }
 
 export default function SearchResultsPanel({
@@ -20,14 +24,16 @@ export default function SearchResultsPanel({
   query,
   isLoading,
   isError,
+  isStale = false,
   onSelectResult,
+  onViewAll,
 }: SearchResultsPanelProps) {
   const navigate = useNavigate()
 
   if (isLoading) {
     return (
       <div className='p-4 sm:p-6'>
-        <div className='mb-3 size-4 animate-pulse rounded bg-surface-inset' />
+        <div className='mb-3 h-4 w-28 animate-pulse rounded bg-surface-inset' />
         <div className='grid gap-2 sm:grid-cols-2'>
           {['skeleton-a', 'skeleton-b', 'skeleton-c', 'skeleton-d', 'skeleton-e', 'skeleton-f'].map(
             (key) => (
@@ -37,9 +43,9 @@ export default function SearchResultsPanel({
               >
                 <Skeleton className='size-16 shrink-0 rounded-lg' />
                 <div className='flex-1 space-y-2'>
-                  <Skeleton className='size-4/4' />
-                  <Skeleton className='size-3/2' />
-                  <Skeleton className='size-4' />
+                  <Skeleton className='h-4 w-3/4' />
+                  <Skeleton className='h-3 w-1/2' />
+                  <Skeleton className='h-4 w-16' />
                 </div>
               </div>
             ),
@@ -51,7 +57,7 @@ export default function SearchResultsPanel({
 
   if (isError) {
     return (
-      <div className='p-4 text-sm text-text-secondary sm:p-6'>
+      <div className='p-4 text-sm text-text-secondary sm:p-6' role='alert'>
         <p>{m.search_results_error()}</p>
       </div>
     )
@@ -66,7 +72,7 @@ export default function SearchResultsPanel({
   }
 
   return (
-    <div className='p-4 sm:p-6'>
+    <div className={cn('p-4 transition-opacity sm:p-6', isStale && 'opacity-60')}>
       <div className='mb-3 flex items-center justify-between'>
         <p
           className='text-xs font-semibold uppercase tracking-wide text-text-muted'
@@ -76,12 +82,16 @@ export default function SearchResultsPanel({
         </p>
         <button
           type='button'
-          onClick={() =>
+          onClick={() => {
+            if (onViewAll) {
+              onViewAll()
+              return
+            }
             navigate({
               to: '/search',
-              search: { q: query },
+              search: { q: query.trim() },
             })
-          }
+          }}
           className='text-xs font-medium text-accent-secondary hover:text-accent-secondary-hover'
         >
           {m.search_view_all()}

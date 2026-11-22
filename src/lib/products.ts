@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { notFound } from '@tanstack/react-router'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
-import { createIpRateLimitMiddleware } from './rate-limit'
+import { createIpRateLimitMiddleware, createMemoryIpRateLimitMiddleware } from './rate-limit'
 import { requirePrivileged2FA } from './server-auth'
 
 export type {
@@ -225,6 +225,15 @@ export const searchSuggestionsFallback = createServerFn({
 
 export { searchOverlay } from './products/search-overlay.functions'
 
+const searchTrendingRateLimitMiddleware = createMemoryIpRateLimitMiddleware(
+  60,
+  60_000,
+  'search-trending',
+)
+
+const TRENDING_SEARCHES_CACHE_KEY = 'cache:search:trending'
+const TRENDING_SEARCHES_CACHE_TTL_MS = 5 * 60_000
+
 /**
  * Queries other buyers actually ran, for the overlay's trending list.
  *
@@ -234,11 +243,18 @@ export { searchOverlay } from './products/search-overlay.functions'
 export const listTrendingSearches = createServerFn({
   method: 'GET',
 })
-  .middleware([searchRateLimitMiddleware])
+  .middleware([searchTrendingRateLimitMiddleware])
   .handler(async () => {
-    const { getPopularQueries } = await import('./search/analytics.server')
+    const [{ withServerCache }, { getPopularQueries }] = await Promise.all([
+      import('./server-cache.server'),
+      import('./search/analytics.server'),
+    ])
     try {
-      return await getPopularQueries(30, 6)
+      return await withServerCache(
+        TRENDING_SEARCHES_CACHE_KEY,
+        TRENDING_SEARCHES_CACHE_TTL_MS,
+        () => getPopularQueries(30, 6),
+      )
     } catch {
       return [] as string[]
     }

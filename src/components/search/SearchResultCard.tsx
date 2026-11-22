@@ -6,6 +6,7 @@ import { cn } from '#/lib/cn'
 import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { isUnmodifiedPrimaryClick } from './click-navigation'
 import HighlightedText from './HighlightedText'
 
 /**
@@ -45,7 +46,11 @@ export default function SearchResultCard({
     <Link
       to='/shops/$shopSlug/products/$productSlug'
       params={{ shopSlug: product.shopSlug ?? 'unknown', productSlug: product.slug }}
-      onClick={onSelect}
+      onClick={(event) => {
+        if (isUnmodifiedPrimaryClick(event)) {
+          onSelect?.()
+        }
+      }}
       className={cn(
         'group flex items-start gap-3 rounded-xl border border-border-default bg-surface-default p-3 transition-colors',
         'hover:border-border-strong hover:bg-bg-inset',

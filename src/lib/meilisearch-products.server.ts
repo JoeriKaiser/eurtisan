@@ -2,6 +2,7 @@ export {
   clearProductsIndex,
   configureProductsIndex,
   isMeilisearchHealthy,
+  markMeilisearchUnhealthy,
   MAX_TOTAL_HITS,
   populateProductsIndex,
   processMeilisearchSyncQueue,
@@ -9,6 +10,7 @@ export {
   rebuildProductsIndex,
   removeProductFromMeilisearch,
   removeShopProductsFromMeilisearch,
+  resetMeilisearchHealthCacheForTests,
   searchProductsMeilisearch,
   syncProductToMeilisearch,
 } from './products/meilisearch.server'
